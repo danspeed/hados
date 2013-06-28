@@ -31,28 +31,16 @@
 
 #include "hados.h"
 
-#define HADOS_QS_LEN 65536
-#define HADOS_MAX_PARAMETERS 64
-
 int main(void) {
 
 	// The generic context of the running node
 	struct hados_context context;
 
+	// Parameters array pass to commands
+	struct hados_parameters parameters;
+
 	// The query string
 	char *query_string;
-
-	// Internal buffer copying the query string
-	char *data;
-
-	// Internal buffer used to parse the query string parameters
-	char *token;
-
-	// Internal buffer used to store the key and the value of the parameters found in the query string
-	char *key, *value;
-
-	// Count the number of parameters in the query string
-	int paramCount;
 
 	// The command requested
 	char *command;
@@ -60,100 +48,38 @@ int main(void) {
 	// The final status/error of the commmand
 	int status;
 
-	// Parameters array pass to commands
-	struct hados_parameter parameters[HADOS_MAX_PARAMETERS];
-
 	// Variables to compute elapsed time
 	struct timeval t1, t2;
 	long elapsedTime;
 
-	data = malloc(HADOS_QS_LEN);
-	token = malloc(HADOS_QS_LEN);
-	key = malloc(HADOS_QS_LEN);
-	value = malloc(HADOS_QS_LEN);
-
-	context.data_dir = NULL;
-	context.node = NULL;
-	context.nodes = NULL;
+	hados_context_init(&context);
+	hados_parameters_init(&parameters);
 
 	while (FCGI_Accept() >= 0) {
 
 		//Main loop
+		hados_context_load(&context);
 
 		gettimeofday(&t1, NULL );
 
-		// Retrieve the data directory if not already set
-		if (context.data_dir == NULL )
-			context.data_dir = getenv("HADOS_DATADIR");
-
-		// Retrieve the my public URL if not already set
-		if (context.node == NULL )
-			context.node = getenv("HADOS_NODE");
-
-		// Retrieve list of other nodes if not already set
-		if (context.nodes == NULL )
-			context.nodes = getenv("HADOS_NODES");
-
 		status = 0;
-		paramCount = 0;
 		command = NULL;
-		parameters[0].key = NULL;
 		query_string = getenv("QUERY_STRING");
 		if (query_string != NULL && strlen(query_string) > 0) {
-
-			// Extracting parameters (only first 64K characters)
-			strncpy(data, query_string, 65536);
-
-			// Iterate over the characters
-			char *pdata = data;
-			paramCount = 0;
-			char c;
-			char *keypos = NULL;
-			char *valuepos = NULL;
-			struct hados_parameter *currentParam = NULL;
-			for (;;) {
-				c = *pdata;
-				if (c == 0) {
-					break;
-				}
-				// Set the key
-				if (keypos == NULL ) {
-					currentParam = &parameters[paramCount];
-					currentParam->key = pdata;
-					currentParam->value = NULL;
-					paramCount++;
-					parameters[paramCount].key = NULL;
-					keypos = pdata;
-					valuepos = pdata;
-				}
-				// Set the value
-				if (valuepos == NULL ) {
-					currentParam->value = pdata;
-					valuepos = pdata;
-				}
-				if (c == '&') {
-					*pdata = 0;
-					keypos = NULL;
-				} else if (c == '=') {
-					*pdata = 0;
-					valuepos = NULL;
-				}
-				pdata++;
-			}
-
-			command = hados_getParameter(parameters, "cmd");
+			hados_parameters_load(&parameters, query_string);
+			command = hados_parameters_getvalue(&parameters, "cmd");
 		}
 
 		if (command != NULL ) {
 
 			if (strcmp(command, "put") == 0) {
-				status = hados_put(&context, parameters);
+				status = hados_put(&context, &parameters);
 			} else if (strcmp(command, "get") == 0) {
-				status = hados_get(&context, parameters);
+				status = hados_get(&context, &parameters);
 			} else if (strcmp(command, "delete") == 0) {
-				status = hados_delete(&context, parameters);
+				status = hados_delete(&context, &parameters);
 			} else if (strcmp(command, "exists") == 0) {
-				status = hados_exists(&context, parameters);
+				status = hados_exists(&context, &parameters);
 			} else {
 				status = HADOS_UNKNOWN_COMMAND;
 			}
@@ -164,7 +90,7 @@ int main(void) {
 			printf("{\n\"version:\": 0.1\n");
 			if (command != NULL )
 				printf(",\n\"command\": \"%s\"", command);
-			printf(",\n\"param_count\": %d", paramCount);
+			printf(",\n\"param_count\": %d", parameters.count);
 			if (context.data_dir != NULL )
 				printf(",\n\"data_dir\": \"%s\"", context.data_dir);
 			printf(",\n\"status\": %d", status);
@@ -179,24 +105,5 @@ int main(void) {
 		}
 	}
 
-	free(data);
-	free(token);
-	free(key);
-	free(value);
 	return 0;
-}
-
-char* hados_getParameter(struct hados_parameter *parameters, const char* key) {
-	struct hados_parameter *parameter;
-	int i;
-	for (i = 0; i < HADOS_MAX_PARAMETERS; i++) {
-		parameter = &parameters[i];
-		if (parameter->key == NULL ) {
-			return NULL ;
-		}
-		if (strcmp(key, parameter->key) == 0) {
-			return parameter->value;
-		}
-	}
-	return NULL ;
 }

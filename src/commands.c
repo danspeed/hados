@@ -17,7 +17,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ============================================================================
- Name        : create_index.c
+ Name        : commands.c
  Author      : Emmanuel Keller
  Version     :
  Copyright   : Jaeksoft / Emmanuel Keller
@@ -41,8 +41,10 @@ int checkDataDir(const char *data_dir) {
 	struct stat s;
 	int err = stat(data_dir, &s);
 	if (err == -1) {
-		perror("");
-		return HADOS_DATADIR_DONT_EXISTS;
+		if (errno == ENOENT)
+			return HADOS_DATADIR_DONT_EXISTS;
+		perror("checkDataDir stat");
+		return HADOS_INTERNAL_ERROR;
 	}
 	if (!S_ISDIR(s.st_mode)) {
 		return HADOS_DATADIR_IS_NOT_A_DIRECTORY;
@@ -50,8 +52,8 @@ int checkDataDir(const char *data_dir) {
 	return HADOS_SUCCESS;
 }
 
-char* checkPath(struct hados_parameter *parameters, int *status) {
-	char* path = hados_getParameter(parameters, "path");
+char* checkPath(struct hados_parameters *parameters, int *status) {
+	char* path = hados_parameters_getvalue(parameters, "path");
 	if (path == NULL ) {
 		*status = HADOS_PATH_IS_MISSING;
 		return NULL ;
@@ -134,7 +136,8 @@ int mkdirs(const char *file_path) {
 	return HADOS_SUCCESS;
 }
 
-int hados_put(struct hados_context *context, struct hados_parameter *parameters) {
+int hados_put(struct hados_context *context,
+		struct hados_parameters *parameters) {
 	int status = checkDataDir(context->data_dir);
 	if (status != HADOS_SUCCESS)
 		return status;
@@ -165,7 +168,8 @@ int hados_put(struct hados_context *context, struct hados_parameter *parameters)
 	return status;
 }
 
-int hados_get(struct hados_context *context, struct hados_parameter *parameters) {
+int hados_get(struct hados_context *context,
+		struct hados_parameters *parameters) {
 	int status = checkDataDir(context->data_dir);
 	if (status != HADOS_SUCCESS)
 		return status;
@@ -197,7 +201,7 @@ int hados_get(struct hados_context *context, struct hados_parameter *parameters)
 }
 
 int hados_delete(struct hados_context *context,
-		struct hados_parameter *parameters) {
+		struct hados_parameters *parameters) {
 	int status = checkDataDir(context->data_dir);
 	if (status != HADOS_SUCCESS)
 		return status;
@@ -221,7 +225,7 @@ int hados_delete(struct hados_context *context,
 }
 
 int hados_exists(struct hados_context *context,
-		struct hados_parameter *parameters) {
+		struct hados_parameters *parameters) {
 	int status = checkDataDir(context->data_dir);
 	if (status != HADOS_SUCCESS)
 		return status;

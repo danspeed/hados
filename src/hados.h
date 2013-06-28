@@ -25,35 +25,63 @@
  */
 #pragma once
 
-struct hados_parameter {
-	char *key;
-	char *value;
-};
-
-typedef struct hados_parameter hados_parameter;
+// defined in context.c
 
 struct hados_context {
 	char *node; // The public URL of myself
-	char *nodes; // Node of the cluster
+	int nodesNumber; // Number of nodes in the cluster
+	char *nodes; // The string defining the list of nodes
+	char **nodeArray; // Node of the cluster
 	char *data_dir; // The directory where the index are stored
+	char *currentFilePath; // The current file
 };
 
-typedef struct hados_context hados_context;
+void hados_context_init(struct hados_context *context);
+void hados_context_load(struct hados_context *context);
+void hados_context_free(struct hados_context *context);
 
-//defined in hados.c
+//defined in parameters.c
 
-char* hados_getParameter(struct hados_parameter *parameters, const char* key);
+struct hados_parameters {
+	int count;
+	char *queryString;
+	char **keyvalue;
+	char **key;
+	char **value;
+};
+
+void hados_parameters_init(struct hados_parameters *parameters);
+void hados_parameters_free(struct hados_parameters *parameters);
+void hados_parameters_load(struct hados_parameters *parameters,
+		const char* queryString);
+char* hados_parameters_getvalue(struct hados_parameters *parameters,
+		const char* key);
 
 //define in commands.c
-int hados_put(struct hados_context *context, struct hados_parameter *parameters);
+
+int hados_put(struct hados_context *context,
+		struct hados_parameters *parameters);
 int hados_exists(struct hados_context *context,
-		struct hados_parameter *parameters);
-int hados_get(struct hados_context *context, struct hados_parameter *parameters);
+		struct hados_parameters *parameters);
+int hados_get(struct hados_context *context,
+		struct hados_parameters *parameters);
 int hados_delete(struct hados_context *context,
-		struct hados_parameter *parameters);
+		struct hados_parameters *parameters);
+
+//defined in external.c
+
+struct MemoryStruct {
+	char *memory;
+	size_t size;
+};
+
+int hados_external_put_if_exists(struct hados_context *context, const char* url);
+
+// Constants
 
 #define HADOS_MAX_PATH_LENGTH				2048
 
+// Status & errors
 #define HADOS_SUCCESS						0
 #define HADOS_BINARY_RESULT					777777
 #define HADOS_UNKNOWN_COMMAND				888888
