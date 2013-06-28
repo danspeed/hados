@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <dirent.h>
 #include "hados.h"
 
@@ -133,15 +134,15 @@ int mkdirs(const char *file_path) {
 	return HADOS_SUCCESS;
 }
 
-int hados_put(const char *data_dir, struct hados_parameter *parameters) {
-	int status = checkDataDir(data_dir);
+int hados_put(struct hados_context *context, struct hados_parameter *parameters) {
+	int status = checkDataDir(context->data_dir);
 	if (status != HADOS_SUCCESS)
 		return status;
 	char *path = checkPath(parameters, &status);
 	if (status != HADOS_SUCCESS)
 		return status;
-	char file_path[strlen(path) + strlen(data_dir) + 2];
-	concatPath(data_dir, path, file_path);
+	char file_path[strlen(path) + strlen(context->data_dir) + 2];
+	concatPath(context->data_dir, path, file_path);
 	status = mkdirs(file_path);
 	if (status != HADOS_SUCCESS)
 		return status;
@@ -164,17 +165,19 @@ int hados_put(const char *data_dir, struct hados_parameter *parameters) {
 	return status;
 }
 
-int hados_get(const char *data_dir, struct hados_parameter *parameters) {
-	int status = checkDataDir(data_dir);
+int hados_get(struct hados_context *context, struct hados_parameter *parameters) {
+	int status = checkDataDir(context->data_dir);
 	if (status != HADOS_SUCCESS)
 		return status;
 	char *path = checkPath(parameters, &status);
 	if (status != HADOS_SUCCESS)
 		return status;
 	struct stat st;
-	char file_path[strlen(path) + strlen(data_dir) + 2];
-	concatPath(data_dir, path, file_path);
+	char file_path[strlen(path) + strlen(context->data_dir) + 2];
+	concatPath(context->data_dir, path, file_path);
 	if (stat(file_path, &st) != 0) {
+		if (errno == ENOENT)
+			return HADOS_OBJECT_NOT_FOUND;
 		perror("hados_delete stat");
 		return HADOS_INTERNAL_ERROR;
 	}
@@ -193,17 +196,20 @@ int hados_get(const char *data_dir, struct hados_parameter *parameters) {
 	return status;
 }
 
-int hados_delete(const char *data_dir, struct hados_parameter *parameters) {
-	int status = checkDataDir(data_dir);
+int hados_delete(struct hados_context *context,
+		struct hados_parameter *parameters) {
+	int status = checkDataDir(context->data_dir);
 	if (status != HADOS_SUCCESS)
 		return status;
 	char *path = checkPath(parameters, &status);
 	if (status != HADOS_SUCCESS)
 		return status;
-	char file_path[strlen(path) + strlen(data_dir) + 2];
-	concatPath(data_dir, path, file_path);
+	char file_path[strlen(path) + strlen(context->data_dir) + 2];
+	concatPath(context->data_dir, path, file_path);
 	struct stat st;
 	if (stat(file_path, &st) != 0) {
+		if (errno == ENOENT)
+			return HADOS_OBJECT_NOT_FOUND;
 		perror("hados_delete stat");
 		return HADOS_INTERNAL_ERROR;
 	}
@@ -214,3 +220,22 @@ int hados_delete(const char *data_dir, struct hados_parameter *parameters) {
 	return HADOS_SUCCESS;
 }
 
+int hados_exists(struct hados_context *context,
+		struct hados_parameter *parameters) {
+	int status = checkDataDir(context->data_dir);
+	if (status != HADOS_SUCCESS)
+		return status;
+	char *path = checkPath(parameters, &status);
+	if (status != HADOS_SUCCESS)
+		return status;
+	struct stat st;
+	char file_path[strlen(path) + strlen(context->data_dir) + 2];
+	concatPath(context->data_dir, path, file_path);
+	if (stat(file_path, &st) != 0) {
+		if (errno == ENOENT)
+			return HADOS_OBJECT_NOT_FOUND;
+		perror("hados_exists stat");
+		return HADOS_INTERNAL_ERROR;
+	}
+	return HADOS_OBJECT_FOUND;
+}

@@ -32,13 +32,25 @@ struct hados_parameter {
 
 typedef struct hados_parameter hados_parameter;
 
+struct hados_context {
+	char *node; // The public URL of myself
+	char *nodes; // Node of the cluster
+	char *data_dir; // The directory where the index are stored
+};
+
+typedef struct hados_context hados_context;
+
 //defined in hados.c
+
 char* hados_getParameter(struct hados_parameter *parameters, const char* key);
 
 //define in commands.c
-int hados_put(const char *data_dir, struct hados_parameter *parameters);
-int hados_get(const char *data_dir, struct hados_parameter *parameters);
-int hados_delete(const char *data_dir, struct hados_parameter *parameters);
+int hados_put(struct hados_context *context, struct hados_parameter *parameters);
+int hados_exists(struct hados_context *context,
+		struct hados_parameter *parameters);
+int hados_get(struct hados_context *context, struct hados_parameter *parameters);
+int hados_delete(struct hados_context *context,
+		struct hados_parameter *parameters);
 
 #define HADOS_MAX_PATH_LENGTH				2048
 
@@ -52,4 +64,6 @@ int hados_delete(const char *data_dir, struct hados_parameter *parameters);
 #define HADOS_PATH_IS_MISSING				100004
 #define HADOS_PATH_TOO_LONG					100005
 #define HADOS_WRONG_CHARACTER_IN_PATH		100006
+#define HADOS_OBJECT_NOT_FOUND				404404
+#define HADOS_OBJECT_FOUND					200200
 

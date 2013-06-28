@@ -36,8 +36,8 @@
 
 int main(void) {
 
-	// The directory where the index are stored
-	char *data_dir;
+	// The generic context of the running node
+	struct hados_context context;
 
 	// The query string
 	char *query_string;
@@ -72,14 +72,27 @@ int main(void) {
 	key = malloc(HADOS_QS_LEN);
 	value = malloc(HADOS_QS_LEN);
 
+	context.data_dir = NULL;
+	context.node = NULL;
+	context.nodes = NULL;
+
 	while (FCGI_Accept() >= 0) {
 
 		//Main loop
 
 		gettimeofday(&t1, NULL );
 
-		// Retrieve the data directory
-		data_dir = getenv("HADOS_DATADIR");
+		// Retrieve the data directory if not already set
+		if (context.data_dir == NULL )
+			context.data_dir = getenv("HADOS_DATADIR");
+
+		// Retrieve the my public URL if not already set
+		if (context.node == NULL )
+			context.node = getenv("HADOS_NODE");
+
+		// Retrieve list of other nodes if not already set
+		if (context.nodes == NULL )
+			context.nodes = getenv("HADOS_NODES");
 
 		status = 0;
 		paramCount = 0;
@@ -134,11 +147,13 @@ int main(void) {
 		if (command != NULL ) {
 
 			if (strcmp(command, "put") == 0) {
-				status = hados_put(data_dir, parameters);
+				status = hados_put(&context, parameters);
 			} else if (strcmp(command, "get") == 0) {
-				status = hados_get(data_dir, parameters);
+				status = hados_get(&context, parameters);
 			} else if (strcmp(command, "delete") == 0) {
-				status = hados_delete(data_dir, parameters);
+				status = hados_delete(&context, parameters);
+			} else if (strcmp(command, "exists") == 0) {
+				status = hados_exists(&context, parameters);
 			} else {
 				status = HADOS_UNKNOWN_COMMAND;
 			}
@@ -150,8 +165,8 @@ int main(void) {
 			if (command != NULL )
 				printf(",\n\"command\": \"%s\"", command);
 			printf(",\n\"param_count\": %d", paramCount);
-			if (data_dir != NULL )
-				printf(",\n\"data_dir\": \"%s\"", data_dir);
+			if (context.data_dir != NULL )
+				printf(",\n\"data_dir\": \"%s\"", context.data_dir);
 			printf(",\n\"status\": %d", status);
 
 			//Compute elapsed time
