@@ -47,7 +47,7 @@ static size_t writeMemoryCallback(void *contents, size_t size, size_t nmemb,
 	return realsize;
 }
 
-static int hados_doGet(const char* url, struct MemoryStruct *chunk) {
+static int hados_do_get(const char* url, struct MemoryStruct *chunk) {
 	CURL *curl_handle;
 	CURLcode res;
 
@@ -59,7 +59,7 @@ static int hados_doGet(const char* url, struct MemoryStruct *chunk) {
 	curl_handle = curl_easy_init();
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
 	curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeMemoryCallback);
-	curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void * ) &chunk);
+	curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void * ) chunk);
 
 	res = curl_easy_perform(curl_handle);
 
@@ -75,6 +75,24 @@ static int hados_doGet(const char* url, struct MemoryStruct *chunk) {
 	return status;
 }
 
-int hados_external_put_if_exists(struct hados_context *context, const char* url) {
+static int hados_external_exists(const char* url, const char* path) {
+	char urlQuery[2048];
+	strcpy(urlQuery, url);
+	strcat(urlQuery, "?cmd=exists&path=");
+	strcat(urlQuery, path);
+	struct MemoryStruct chunck;
+	int status = hados_do_get(urlQuery, &chunck);
+	perror(chunck.memory);
+	free(chunck.memory);
+	return status;
+}
 
+int hados_external_put_if_exists(struct hados_context *context) {
+	int i;
+	for (i = 0; i < context->nodesNumber; i++) {
+		if (strcmp(context->node, context->nodeArray[i]) == 0)
+			continue;
+		hados_external_exists(context->nodeArray[i], context->paramPath);
+	}
+	return HADOS_SUCCESS;
 }

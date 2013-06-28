@@ -34,6 +34,7 @@ void hados_parameters_init(struct hados_parameters *parameters) {
 	parameters->key = NULL;
 	parameters->value = NULL;
 	parameters->keyvalue = NULL;
+	parameters->queryString = NULL;
 }
 
 void hados_parameters_free(struct hados_parameters *parameters) {
@@ -64,6 +65,7 @@ void hados_parameters_load(struct hados_parameters *parameters,
 	hados_parameters_free(parameters);
 
 	// Count the number of parameters
+	perror(queryString);
 	char *qs = strdup(queryString);
 	char *token = strtok(qs, "&");
 	while (token != NULL ) {

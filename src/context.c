@@ -26,6 +26,7 @@
 
 #include "fcgi_stdio.h"
 #include <stdlib.h>
+#include <string.h>
 #include "hados.h"
 
 void hados_context_init(struct hados_context *context) {
@@ -43,19 +44,19 @@ void hados_context_init(struct hados_context *context) {
 void hados_context_load(struct hados_context *context) {
 	// Retrieve the data directory if not already set
 	if (context->data_dir == NULL )
-		context->data_dir = getenv("HADOS_DATADIR");
+		context->data_dir = strdup(getenv("HADOS_DATADIR"));
 
 	// Retrieve the my public URL if not already set
 	if (context->node == NULL )
-		context->node = getenv("HADOS_NODE");
+		context->node = strdup(getenv("HADOS_NODE"));
 
 	// Retrieve list of other nodes if not already set
 	if (context->nodes == NULL ) {
-		const char *nodes = getenv("HADOS_NODES");
-		if (nodes == NULL )
+		context->nodes = strdup(getenv("HADOS_NODES"));
+		if (context->nodes == NULL )
 			return;
 
-		char *nodes2 = strdup(nodes);
+		char *nodes2 = strdup(context->nodes);
 		char *node = strtok(nodes2, " ");
 		context->nodesNumber = 0;
 		while (node != NULL ) {
@@ -67,7 +68,6 @@ void hados_context_load(struct hados_context *context) {
 		if (context->nodesNumber > 0) {
 			context->nodeArray = (char **) malloc(
 					context->nodesNumber * sizeof(char *));
-			context->nodes = strdup(nodes);
 			char *node = strtok(context->nodes, " ");
 			int i = 0;
 			while (node != NULL ) {
@@ -91,4 +91,22 @@ void hados_context_free(struct hados_context *context) {
 		free(context->currentFilePath);
 		context->currentFilePath = NULL;
 	}
+	if (context->data_dir != NULL ) {
+		free(context->data_dir);
+		context->data_dir = NULL;
+	}
+	if (context->node != NULL ) {
+		free(context->node);
+		context->node = NULL;
+	}
+}
+
+void hados_context_set_file_path(struct hados_context *context,
+		const char* path) {
+	if (context->currentFilePath != NULL )
+		free(context->currentFilePath);
+	context->currentFilePath = malloc(
+			(strlen(path) + strlen(context->data_dir) + 2) * sizeof(char));
+	context->paramPath = (char*) path;
+	hados_concat_path(context->data_dir, path, context->currentFilePath);
 }

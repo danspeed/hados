@@ -34,11 +34,14 @@ struct hados_context {
 	char **nodeArray; // Node of the cluster
 	char *data_dir; // The directory where the index are stored
 	char *currentFilePath; // The current file
+	char *paramPath; // The current path param
 };
 
 void hados_context_init(struct hados_context *context);
 void hados_context_load(struct hados_context *context);
 void hados_context_free(struct hados_context *context);
+void hados_context_set_file_path(struct hados_context *context,
+		const char* path);
 
 //defined in parameters.c
 
@@ -75,13 +78,19 @@ struct MemoryStruct {
 	size_t size;
 };
 
-int hados_external_put_if_exists(struct hados_context *context, const char* url);
+int hados_external_put_if_exists(struct hados_context *contex);
+
+//define in utils.c
+
+char* hados_concat_path(const char *root_dir, const char *file_name,
+		char *buffer);
 
 // Constants
 
 #define HADOS_MAX_PATH_LENGTH				2048
 
 // Status & errors
+
 #define HADOS_SUCCESS						0
 #define HADOS_BINARY_RESULT					777777
 #define HADOS_UNKNOWN_COMMAND				888888

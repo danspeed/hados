@@ -74,6 +74,8 @@ int main(void) {
 
 			if (strcmp(command, "put") == 0) {
 				status = hados_put(&context, &parameters);
+				if (status == HADOS_SUCCESS)
+					hados_external_put_if_exists(&context);
 			} else if (strcmp(command, "get") == 0) {
 				status = hados_get(&context, &parameters);
 			} else if (strcmp(command, "delete") == 0) {
@@ -105,5 +107,6 @@ int main(void) {
 		}
 	}
 
+	hados_context_free(&context);
 	return 0;
 }
