@@ -58,10 +58,12 @@ void hados_request_free(struct hados_request *request) {
 /**
  * Build the parameters structure using the query string
  */
-void hados_request_load(struct hados_request *request, const char* queryString) {
+void hados_request_load(struct hados_request *request,
+		struct hados_context *context) {
 
 	gettimeofday(&request->requestTime, NULL );
 
+	const char* queryString = hados_context_get_env(context, "QUERY_STRING");
 	// Count the number of parameters
 	if (queryString != NULL && strlen(queryString) > 0) {
 		char *qs = strdup(queryString);
@@ -94,7 +96,7 @@ void hados_request_load(struct hados_request *request, const char* queryString) 
 		}
 
 		request->command = hados_request_getvalue(request, "cmd");
-
+		request->paramPath = hados_request_getvalue(request, "path");
 	}
 }
 

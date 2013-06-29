@@ -50,8 +50,11 @@ int hados_response_set_status(struct hados_response *response, int status,
 }
 
 int hados_response_set_errno(struct hados_response *response) {
-	return hados_response_set_status(response, HADOS_INTERNAL_ERROR,
-			strerror(errno));
+	char errormsg[1024];
+	strerror_r(errno, errormsg, sizeof(errormsg) - 1);
+	int status = hados_response_set_status(response, HADOS_INTERNAL_ERROR,
+			errormsg);
+	return status;
 }
 
 int hados_response_set_success(struct hados_response *response) {
@@ -62,22 +65,28 @@ void hados_response_write(struct hados_response *response,
 		struct hados_context *context, struct hados_request *request) {
 	if (response->status == HADOS_BINARY_RESULT)
 		return;
-	printf("Content-type: application/json\r\n\r\n");
-	printf("{\n\"version:\": 0.1\n");
+	hados_context_printf(context, "Content-type: application/json\r\n\r\n");
+	hados_context_printf(context, "{\n\"version:\": 0.1");
 	if (request->command != NULL )
-		printf(",\n\"command\": \"%s\"", request->command);
-	printf(",\n\"param_count\": %d", request->count);
+		hados_context_printf(context, ",\n\"command\": \"%s\"",
+				request->command);
+	hados_context_printf(context, ",\n\"param_count\": %d", request->count);
+	if (context->bytes_received != 0)
+		hados_context_printf(context, ",\n\"bytes_received\": %d",
+				context->bytes_received);
 	if (context->data_dir != NULL )
-		printf(",\n\"data_dir\": \"%s\"", context->data_dir);
-	printf(",\n\"status\": %d", response->status);
+		hados_context_printf(context, ",\n\"data_dir\": \"%s\"",
+				context->data_dir);
+	hados_context_printf(context, ",\n\"status\": %d", response->status);
 	if (response->message != NULL )
-		printf(",\n\"message\": \"%s\"", response->message);
+		hados_context_printf(context, ",\n\"message\": \"%s\"",
+				response->message);
 
 //Compute elapsed time
 	struct timeval endTime;
 	gettimeofday(&endTime, NULL );
 	long elapsedTime = (endTime.tv_sec - request->requestTime.tv_sec) * 1000.0; // sec to ms
 	elapsedTime += (endTime.tv_usec - request->requestTime.tv_usec) / 1000.0; // us to ms
-	printf(",\n\"time_ms\": %ld", elapsedTime);
-	printf("}\n");
+	hados_context_printf(context, ",\n\"time_ms\": %ld", elapsedTime);
+	hados_context_printf(context, "\n}\n");
 }

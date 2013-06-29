@@ -27,6 +27,12 @@
 #include "hados.h"
 #include <curl/curl.h>
 
+struct MemoryStruct {
+	char *memory;
+	size_t size;
+	struct hados_response *response;
+};
+
 static size_t writeMemoryCallback(void *contents, size_t size, size_t nmemb,
 		void *userp) {
 	size_t realsize = size * nmemb;
@@ -34,7 +40,8 @@ static size_t writeMemoryCallback(void *contents, size_t size, size_t nmemb,
 
 	mem->memory = realloc(mem->memory, mem->size + realsize + 1);
 	if (mem->memory == NULL ) {
-		perror("not enough memory (realloc returned NULL)");
+		hados_response_set_status(mem->response, HADOS_INTERNAL_ERROR,
+				"Memory issue");
 		return 0;
 	}
 
@@ -72,24 +79,28 @@ static int hados_do_get(const char* url, struct MemoryStruct *chunk) {
 	return status;
 }
 
-static int hados_external_exists(const char* url, const char* path) {
+static int hados_external_exists(struct hados_response *response,
+		const char* url, const char* path) {
 	char urlQuery[2048];
 	strcpy(urlQuery, url);
 	strcat(urlQuery, "?cmd=exists&path=");
 	strcat(urlQuery, path);
 	struct MemoryStruct chunck;
+	chunck.response = response;
 	int status = hados_do_get(urlQuery, &chunck);
 	perror(chunck.memory);
 	free(chunck.memory);
 	return status;
 }
 
-int hados_external_put_if_exists(struct hados_context *context) {
+int hados_external_put_if_exists(struct hados_context *context, struct hados_request *request,
+		struct hados_response *response) {
 	int i;
 	for (i = 0; i < context->nodesNumber; i++) {
 		if (strcmp(context->node, context->nodeArray[i]) == 0)
 			continue;
-		hados_external_exists(context->nodeArray[i], context->paramPath);
+		hados_external_exists(response, context->nodeArray[i],
+				request->paramPath);
 	}
 	return HADOS_SUCCESS;
 }

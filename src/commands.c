@@ -35,7 +35,7 @@ static int checkDataDir(const char *data_dir, struct hados_response *response) {
 	if (err == -1) {
 		if (errno == ENOENT)
 			return hados_response_set_status(response, HADOS_DATADIR_NOT_SET,
-					"The data directory does not exits");
+					"The data directory does not exist");
 		return hados_response_set_errno(response);
 	}
 	if (!S_ISDIR(s.st_mode))
@@ -45,130 +45,67 @@ static int checkDataDir(const char *data_dir, struct hados_response *response) {
 	return hados_response_set_success(response);
 }
 
-static char* checkPath(struct hados_request *request,
-		struct hados_response *response) {
-	char* path = hados_request_getvalue(request, "path");
-	if (path == NULL ) {
-		hados_response_set_status(response, HADOS_PATH_IS_MISSING,
-				"The path is missing");
-		return NULL ;
-	}
-	if (strstr(path, "../") != NULL ) {
-		hados_response_set_status(response, HADOS_WRONG_CHARACTER_IN_PATH,
-				"Not allowed character in the path");
-		return NULL ;
-	}
-	if (strstr(path, "./") != NULL ) {
-		hados_response_set_status(response, HADOS_WRONG_CHARACTER_IN_PATH,
-				"Not allowed character in the path");
-		return NULL ;
-	}
-	if (strstr(path, "//") != NULL ) {
-		hados_response_set_status(response, HADOS_WRONG_CHARACTER_IN_PATH,
-				"Not allowed character in the path");
-		return NULL ;
-	}
-	char *pc = path;
-	char c;
-	int pos = 0;
-	while ((c = *pc) != 0) {
-		pc++;
-		pos++;
-		if (c == 37 || c == 43 || c == 47 || c == 46)
-			continue;
-		if (c >= 48 && c <= 57)
-			continue;
-		if (c >= 65 && c <= 90)
-			continue;
-		if (c >= 97 && c <= 122)
-			continue;
-		if (pos > HADOS_MAX_PATH_LENGTH) {
-			hados_response_set_status(response, HADOS_PATH_TOO_LONG,
-					"The path is too long");
-			return NULL ;
-		}
-		hados_response_set_status(response, HADOS_WRONG_CHARACTER_IN_PATH,
-				"Not allowed character in the path");
-		return NULL ;
-	}
-	return path;
-}
-
-static int mkdirs(const char *file_path, struct hados_response *response) {
-	struct stat st;
-	char path[strlen(file_path) + 1];
-	strcpy(path, file_path);
-	char *p = path;
-	int dirExists = 0;
-	while (*p != 0) {
-		if (*p == '/') {
-			*p = 0;
-			if (strlen(path) > 0) {
-				dirExists = 0;
-				if (stat(path, &st) == 0)
-					if (S_ISDIR(st.st_mode))
-						dirExists = 1;
-				if (dirExists == 0)
-					if (mkdir(path, S_IRWXU) == -1)
-						return hados_response_set_errno(response);
-			}
-			*p = '/';
-		}
-		p++;
-	}
-	return hados_response_set_success(response);
-}
-
 static int hados_command_put(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
 	if (checkDataDir(context->data_dir, response) != HADOS_SUCCESS)
 		return response->status;
-	char *path = checkPath(request, response);
-	if (response->status != HADOS_SUCCESS)
+	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;
-	hados_context_set_file_path(context, path);
-	if (mkdirs(context->currentFilePath, response) != HADOS_SUCCESS)
+	const char* content_length = hados_context_get_env(context,
+			"CONTENT_LENGTH");
+	long contentLength = 0;
+	if (content_length != NULL )
+		contentLength = atol(content_length);
+	if (contentLength == 0)
+		return hados_response_set_status(response,
+				HADOS_NO_CONTENT_LENGTH_GIVEN, "Missing content length header");
+	if (hados_utils_mkdirs(context->object.filepath, response) != HADOS_SUCCESS)
 		return response->status;
-	FILE *file = fopen(context->currentFilePath, "wb");
+	FILE *file = fopen(context->object.filepath, "wb");
 	if (file == NULL )
 		return hados_response_set_errno(response);
-	long bytes = 0;
 	int c;
-	while ((c = getchar()) != EOF) {
-		bytes++;
+	context->bytes_received = 0;
+	for (;;) {
+		c = FCGX_GetChar(context->fcgxRequest.in);
+		if (c == EOF) {
+			break;
+		}
+		context->bytes_received++;
 		if (fputc(c, file) == EOF) {
 			hados_response_set_errno(response);
 			break;
 		}
 	}
 	fclose(file);
-	return response->status;
+	if (context->bytes_received != contentLength)
+		return hados_response_set_status(response,
+				HADOS_NOT_ENOUGH_BYTES_RECEIVED, "Not enough bytes received");;
+	return hados_response_set_success(response);
 }
 
 static int hados_command_get(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
 	if (checkDataDir(context->data_dir, response) != HADOS_SUCCESS)
 		return response->status;
-	char *path = checkPath(request, response);
-	if (response->status != HADOS_SUCCESS)
+	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;
-	hados_context_set_file_path(context, path);
 	struct stat st;
-	if (stat(context->currentFilePath, &st) != 0) {
+	if (stat(context->object.filepath, &st) != 0) {
 		if (errno == ENOENT)
 			return hados_response_set_status(response, HADOS_OBJECT_NOT_FOUND,
 					"Object/file not found");
 		return hados_response_set_errno(response);
 	}
-	FILE *file = fopen(context->currentFilePath, "rb");
+	FILE *file = fopen(context->object.filepath, "rb");
 	if (file == NULL )
 		return hados_response_set_errno(response);
 	response->status = HADOS_BINARY_RESULT;
-	printf("Content-type: application/octet-stream\r\n");
-	printf("Content-Transfer-Encoding: binary\r\n\r\n");
+	hados_context_printf(context, "Content-type: application/octet-stream\r\n");
+	hados_context_printf(context, "Content-Transfer-Encoding: binary\r\n\r\n");
 	int c;
 	while ((c = fgetc(file)) != EOF)
-		putchar(c);
+		FCGX_PutChar(c, context->fcgxRequest.out);
 	fclose(file);
 	return response->status;
 }
@@ -177,18 +114,16 @@ static int hados_command_delete(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
 	if (checkDataDir(context->data_dir, response) != HADOS_SUCCESS)
 		return response->status;
-	char *path = checkPath(request, response);
-	if (response->status != HADOS_SUCCESS)
+	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;
-	hados_context_set_file_path(context, path);
 	struct stat st;
-	if (stat(context->currentFilePath, &st) != 0) {
+	if (stat(context->object.filepath, &st) != 0) {
 		if (errno == ENOENT)
 			return hados_response_set_status(response, HADOS_OBJECT_NOT_FOUND,
 					"Object/file not found");
 		return hados_response_set_errno(response);
 	}
-	if (unlink(context->currentFilePath) != 0)
+	if (unlink(context->object.filepath) != 0)
 		return hados_response_set_errno(response);
 	return hados_response_set_success(response);
 }
@@ -197,12 +132,10 @@ static int hados_command_exists(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
 	if (checkDataDir(context->data_dir, response) != HADOS_SUCCESS)
 		return response->status;
-	char *path = checkPath(request, response);
-	if (response->status != HADOS_SUCCESS)
+	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;
-	hados_context_set_file_path(context, path);
 	struct stat st;
-	if (stat(context->currentFilePath, &st) != 0) {
+	if (stat(context->object.filepath, &st) != 0) {
 		if (errno == ENOENT)
 			return hados_response_set_status(response, HADOS_OBJECT_NOT_FOUND,
 					"Object/file not found");
@@ -220,8 +153,6 @@ void hados_command_dispatch(struct hados_context *context,
 
 	if (strcmp(request->command, "put") == 0) {
 		hados_command_put(context, request, response);
-		if (response->status == HADOS_SUCCESS)
-			hados_external_put_if_exists(context);
 	} else if (strcmp(request->command, "get") == 0) {
 		hados_command_get(context, request, response);
 	} else if (strcmp(request->command, "delete") == 0) {

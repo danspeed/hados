@@ -27,29 +27,50 @@
 #include "hados.h"
 
 void hados_context_init(struct hados_context *context) {
+	FCGX_InitRequest(&context->fcgxRequest, 0, 0);
 	context->data_dir = NULL;
 	context->node = NULL;
 	context->nodes = NULL;
 	context->nodeArray = NULL;
 	context->nodesNumber = 0;
-	context->currentFilePath = 0;
 }
 
+const char* hados_context_get_env(struct hados_context *context,
+		const char* param) {
+	return FCGX_GetParam(param, context->fcgxRequest.envp);
+}
+
+char* hados_context_get_env_dup(struct hados_context *context,
+		const char* param) {
+	const char* env = FCGX_GetParam(param, context->fcgxRequest.envp);
+	if (env == NULL )
+		return NULL ;
+	return strdup(env);
+}
+
+int hados_context_printf(struct hados_context *context, const char *format, ...) {
+	va_list argList;
+	va_start(argList, format);
+	int result = FCGX_VFPrintF(context->fcgxRequest.out, format, argList);
+	va_end(argList);
+	return result;
+}
 /**
  * Load the global context of the server
  */
 void hados_context_load(struct hados_context *context) {
+	context->bytes_received = 0;
 	// Retrieve the data directory if not already set
 	if (context->data_dir == NULL )
-		context->data_dir = strdup(getenv("HADOS_DATADIR"));
+		context->data_dir = hados_context_get_env_dup(context, "HADOS_DATADIR");
 
 	// Retrieve the my public URL if not already set
 	if (context->node == NULL )
-		context->node = strdup(getenv("HADOS_NODE"));
+		context->node = hados_context_get_env_dup(context, "HADOS_NODE");
 
 	// Retrieve list of other nodes if not already set
 	if (context->nodes == NULL ) {
-		context->nodes = strdup(getenv("HADOS_NODES"));
+		context->nodes = hados_context_get_env_dup(context, "HADOS_NODES");
 		if (context->nodes == NULL )
 			return;
 
@@ -75,7 +96,13 @@ void hados_context_load(struct hados_context *context) {
 	}
 }
 
+int hados_context_set_object(struct hados_context *context,
+		struct hados_request *request, struct hados_response *response) {
+	return hados_object_init(&context->object, context, request, response);
+}
+
 void hados_context_free(struct hados_context *context) {
+	hados_object_free(&context->object);
 	if (context->nodes != NULL ) {
 		free(context->nodes);
 		context->nodes = NULL;
@@ -83,10 +110,6 @@ void hados_context_free(struct hados_context *context) {
 	if (context->nodeArray != NULL ) {
 		free(context->nodeArray);
 		context->nodeArray = NULL;
-	}
-	if (context->currentFilePath != NULL ) {
-		free(context->currentFilePath);
-		context->currentFilePath = NULL;
 	}
 	if (context->data_dir != NULL ) {
 		free(context->data_dir);
@@ -96,14 +119,4 @@ void hados_context_free(struct hados_context *context) {
 		free(context->node);
 		context->node = NULL;
 	}
-}
-
-void hados_context_set_file_path(struct hados_context *context,
-		const char* path) {
-	if (context->currentFilePath != NULL )
-		free(context->currentFilePath);
-	context->currentFilePath = malloc(
-			(strlen(path) + strlen(context->data_dir) + 2) * sizeof(char));
-	context->paramPath = (char*) path;
-	hados_concat_path(context->data_dir, path, context->currentFilePath);
 }

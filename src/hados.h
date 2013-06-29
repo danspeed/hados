@@ -25,35 +25,39 @@
  */
 #pragma once
 
-#include "fcgi_stdio.h"
+#include "fcgi_config.h"
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <stdio.h>
 #include <errno.h>
 #include <dirent.h>
+#include "fcgiapp.h"
 
-// defined in context.c
+struct hados_object {
+	char *filepath;
+	char *filename;
+};
+
+struct hados_response {
+	int status;
+	char *message;
+};
 
 struct hados_context {
+	FCGX_Request fcgxRequest;
 	char *node; // The public URL of myself
 	int nodesNumber; // Number of nodes in the cluster
 	char *nodes; // The string defining the list of nodes
 	char **nodeArray; // Node of the cluster
 	char *data_dir; // The directory where the index are stored
-	char *currentFilePath; // The current file
-	char *paramPath; // The current path param
+	struct hados_object object; // The current file object
+	long bytes_received;
 };
-
-void hados_context_init(struct hados_context *context);
-void hados_context_load(struct hados_context *context);
-void hados_context_free(struct hados_context *context);
-void hados_context_set_file_path(struct hados_context *context,
-		const char* path);
-
-//defined in request.c
 
 struct hados_request {
 	int count;
@@ -62,20 +66,39 @@ struct hados_request {
 	char **key;
 	char **value;
 	char *command;
+	char *paramPath;
 	struct timeval requestTime;
 };
 
+// defined in object.c
+
+int hados_object_init(struct hados_object *hados_object,
+		struct hados_context *context, struct hados_request *request,
+		struct hados_response *response);
+void hados_object_free(struct hados_object *hados_object);
+
+// defined in context.c
+
+void hados_context_init(struct hados_context *context);
+void hados_context_load(struct hados_context *context);
+const char* hados_context_get_env(struct hados_context *context,
+		const char* param);
+char* hados_context_get_env_dup(struct hados_context *context,
+		const char* param);
+int hados_context_printf(struct hados_context *context, const char *format, ...);
+void hados_context_free(struct hados_context *context);
+int hados_context_set_object(struct hados_context *context,
+		struct hados_request *request, struct hados_response *response);
+
+//defined in request.c
+
 void hados_request_init(struct hados_request *request);
 void hados_request_free(struct hados_request *request);
-void hados_request_load(struct hados_request *request, const char* queryString);
+void hados_request_load(struct hados_request *request,
+		struct hados_context *context);
 char* hados_request_getvalue(struct hados_request *request, const char* key);
 
 //defined in response.c
-
-struct hados_response {
-	int status;
-	char *message;
-};
 
 void hados_response_init(struct hados_response *response);
 void hados_response_free(struct hados_response *response);
@@ -93,17 +116,14 @@ void hados_command_dispatch(struct hados_context *context,
 
 //defined in external.c
 
-struct MemoryStruct {
-	char *memory;
-	size_t size;
-};
-
-int hados_external_put_if_exists(struct hados_context *context);
+int hados_external_put_if_exists(struct hados_context *context, struct hados_request *request,
+		struct hados_response *response);
 
 //define in utils.c
 
-char* hados_concat_path(const char *root_dir, const char *file_name,
+char* hados_utils_concat_path(const char *root_dir, const char *file_name,
 		char *buffer);
+int hados_utils_mkdirs(const char *file_path, struct hados_response *response);
 
 // Constants
 
@@ -121,6 +141,8 @@ char* hados_concat_path(const char *root_dir, const char *file_name,
 #define HADOS_PATH_IS_MISSING				100004
 #define HADOS_PATH_TOO_LONG					100005
 #define HADOS_WRONG_CHARACTER_IN_PATH		100006
+#define HADOS_NO_CONTENT_LENGTH_GIVEN		100007
+#define HADOS_NOT_ENOUGH_BYTES_RECEIVED		100008
 #define HADOS_OBJECT_NOT_FOUND				404404
 #define HADOS_OBJECT_FOUND					200200
 

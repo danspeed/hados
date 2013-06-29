@@ -26,7 +26,11 @@
 
 #include "hados.h"
 
-int main(void) {
+#define THREAD_COUNT 20
+
+static void *hados_thread(void * parm) {
+
+	int rc;
 
 	// The generic context of the running node
 	struct hados_context context;
@@ -38,12 +42,21 @@ int main(void) {
 
 	hados_context_init(&context);
 
-	while (FCGI_Accept() >= 0) {
+	for (;;) {
+
+		static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+		pthread_mutex_lock(&accept_mutex);
+		rc = FCGX_Accept_r(&context.fcgxRequest);
+		pthread_mutex_unlock(&accept_mutex);
+
+		if (rc < 0)
+			break;
 
 		//Main loop
 		hados_context_load(&context);
 		hados_request_init(&request);
-		hados_request_load(&request, getenv("QUERY_STRING"));
+		hados_request_load(&request, &context);
 		hados_response_init(&response);
 
 		hados_command_dispatch(&context, &request, &response);
@@ -51,8 +64,23 @@ int main(void) {
 		hados_response_write(&response, &context, &request);
 		hados_response_free(&response);
 		hados_request_free(&request);
+
+		FCGX_Finish_r(&context.fcgxRequest);
 	}
 
 	hados_context_free(&context);
+	return NULL ;
+}
+
+int main(void) {
+	int i;
+	pthread_t id[THREAD_COUNT];
+
+	FCGX_Init();
+
+	for (i = 1; i < THREAD_COUNT; i++)
+		pthread_create(&id[i], NULL, hados_thread, NULL );
+
+	hados_thread(NULL );
 	return 0;
 }
