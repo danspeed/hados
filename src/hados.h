@@ -45,6 +45,7 @@ struct hados_object {
 
 struct hados_response {
 	int status;
+	int http_status;
 	char *message;
 };
 

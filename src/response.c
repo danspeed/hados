@@ -28,6 +28,7 @@
 
 void hados_response_init(struct hados_response *response) {
 	response->status = 0;
+	response->http_status = 200;
 	response->message = NULL;
 }
 
@@ -41,6 +42,17 @@ void hados_response_free(struct hados_response *response) {
 int hados_response_set_status(struct hados_response *response, int status,
 		const char* message) {
 	response->status = status;
+	switch (response->status) {
+	case HADOS_SUCCESS:
+		response->http_status = 200;
+		break;
+	case HADOS_OBJECT_NOT_FOUND:
+		response->http_status = 404;
+		break;
+	default:
+		response->http_status = 500;
+		break;
+	}
 	if (response->message != NULL ) {
 		free(response->message);
 		response->message = NULL;
@@ -65,6 +77,8 @@ void hados_response_write(struct hados_response *response,
 		struct hados_context *context, struct hados_request *request) {
 	if (response->status == HADOS_BINARY_RESULT)
 		return;
+	if (response->http_status != 200)
+		hados_context_printf(context, "Status: %d\r\n", response->http_status);
 	hados_context_printf(context, "Content-type: application/json\r\n");
 	hados_context_printf(context, "X-Hados-Status: %d\r\n\r\n",
 			response->status);
