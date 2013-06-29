@@ -27,80 +27,98 @@
 #include "hados.h"
 #include <curl/curl.h>
 
-struct MemoryStruct {
-	char *memory;
+struct CallbackStruct {
+	char *body;
 	size_t size;
 	struct hados_response *response;
+	int hados_status;
 };
 
-static size_t writeMemoryCallback(void *contents, size_t size, size_t nmemb,
-		void *userp) {
-	size_t realsize = size * nmemb;
-	struct MemoryStruct *mem = (struct MemoryStruct *) userp;
+static void hados_callback_init(struct CallbackStruct *callback,
+		struct hados_response *response) {
+	callback->response = response;
+	callback->body = malloc(1); /* will be grown as needed by the realloc above */
+	callback->size = 0; /* no data at this point */
+	callback->hados_status = 0;
+}
 
-	mem->memory = realloc(mem->memory, mem->size + realsize + 1);
-	if (mem->memory == NULL ) {
-		hados_response_set_status(mem->response, HADOS_INTERNAL_ERROR,
+static void hados_callback_free(struct CallbackStruct *callback) {
+	if (callback->body != NULL ) {
+		free(callback->body);
+		callback->body = NULL;
+	}
+}
+
+static size_t writeDataCallback(void *content, size_t size, size_t nmemb,
+		void *userdata) {
+	size_t realsize = size * nmemb;
+	struct CallbackStruct *callback = (struct CallbackStruct *) userdata;
+
+	callback->body = realloc(callback->body, callback->size + realsize + 1);
+	if (callback->body == NULL ) {
+		hados_response_set_status(callback->response, HADOS_INTERNAL_ERROR,
 				"Memory issue");
 		return 0;
 	}
 
-	memcpy(&(mem->memory[mem->size]), contents, realsize);
-	mem->size += realsize;
-	mem->memory[mem->size] = 0;
+	memcpy(&(callback->body[callback->size]), content, realsize);
+	callback->size += realsize;
+	callback->body[callback->size] = 0;
 	return realsize;
 }
 
-static int hados_do_get(const char* url, struct MemoryStruct *chunk) {
+static size_t writeHeaderCallback(void *content, size_t size, size_t nmemb,
+		void *userdata) {
+	size_t realsize = size * nmemb;
+	struct CallbackStruct *callback = (struct CallbackStruct *) userdata;
+	if (content == NULL)
+		return realsize;
+	char *saveptr;
+	char *header = strdup(content);
+	char* token = strtok_r(header, ":", &saveptr);
+	if (token != NULL) {
+		if (strcmp(token, "X-Hados-Status") == 0) {
+			token = strtok_r(NULL, ": ", &saveptr);
+			if (token != NULL)
+				callback->hados_status = atoi(token);
+		}
+	}
+	return realsize;
+}
+
+static void curlGet(const char* url, struct CallbackStruct *callback) {
 	CURL *curl_handle;
 	CURLcode res;
-
-	chunk->memory = malloc(1); /* will be grown as needed by the realloc above */
-	chunk->size = 0; /* no data at this point */
 
 	curl_global_init(CURL_GLOBAL_ALL);
 
 	curl_handle = curl_easy_init();
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
-	curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeMemoryCallback);
-	curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void * ) chunk);
+	curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataCallback);
+	curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void * ) callback);
+	curl_easy_setopt(curl_handle, CURLOPT_HEADERFUNCTION, writeHeaderCallback);
+	curl_easy_setopt(curl_handle, CURLOPT_HEADERDATA, (void * ) callback);
 
 	res = curl_easy_perform(curl_handle);
 
-	int status;
-	if (res != CURLE_OK) {
+	if (res != CURLE_OK)
 		perror(curl_easy_strerror(res));
-		status = HADOS_INTERNAL_ERROR;
-	} else
-		status = HADOS_SUCCESS;
 
 	curl_easy_cleanup(curl_handle);
 	curl_global_cleanup();
-	return status;
 }
 
-static int hados_external_exists(struct hados_response *response,
-		const char* url, const char* path) {
+int hados_external_exists(struct hados_response *response, const char* url,
+		const char* path) {
 	char urlQuery[2048];
 	strcpy(urlQuery, url);
 	strcat(urlQuery, "?cmd=exists&path=");
 	strcat(urlQuery, path);
-	struct MemoryStruct chunck;
-	chunck.response = response;
-	int status = hados_do_get(urlQuery, &chunck);
-	perror(chunck.memory);
-	free(chunck.memory);
-	return status;
+	struct CallbackStruct callback;
+	hados_callback_init(&callback, response);
+	callback.response = response;
+	curlGet(urlQuery, &callback);
+	hados_callback_free(&callback);
+	return callback.hados_status;
 }
 
-int hados_external_put_if_exists(struct hados_context *context, struct hados_request *request,
-		struct hados_response *response) {
-	int i;
-	for (i = 0; i < context->nodesNumber; i++) {
-		if (strcmp(context->node, context->nodeArray[i]) == 0)
-			continue;
-		hados_external_exists(response, context->nodeArray[i],
-				request->paramPath);
-	}
-	return HADOS_SUCCESS;
-}

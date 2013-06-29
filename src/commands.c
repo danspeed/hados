@@ -145,6 +145,20 @@ static int hados_command_exists(struct hados_context *context,
 			"Object/file exists");
 }
 
+static int hados_command_cluster_exists(struct hados_context *context,
+		struct hados_request *request, struct hados_response *response) {
+	int i;
+	int found = 0;
+	for (i = 0; i < context->nodesNumber; i++) {
+		if (hados_external_exists(response, context->nodeArray[i],
+				request->paramPath) == 200)
+			found++;
+	}
+	char s[256];
+	sprintf(s, "Found %d over %d", found, i);
+	return hados_response_set_status(response, HADOS_SUCCESS, s);
+}
+
 void hados_command_dispatch(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
 
@@ -159,6 +173,8 @@ void hados_command_dispatch(struct hados_context *context,
 		hados_command_delete(context, request, response);
 	} else if (strcmp(request->command, "exists") == 0) {
 		hados_command_exists(context, request, response);
+	} else if (strcmp(request->command, "cluster_exists") == 0) {
+		hados_command_cluster_exists(context, request, response);
 	} else {
 		hados_response_set_status(response, HADOS_UNKNOWN_COMMAND,
 				"Unknown command");

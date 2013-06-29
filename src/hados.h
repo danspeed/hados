@@ -116,8 +116,8 @@ void hados_command_dispatch(struct hados_context *context,
 
 //defined in external.c
 
-int hados_external_put_if_exists(struct hados_context *context, struct hados_request *request,
-		struct hados_response *response);
+int hados_external_exists(struct hados_response *response, const char* url,
+		const char* path);
 
 //define in utils.c
 
@@ -143,6 +143,6 @@ int hados_utils_mkdirs(const char *file_path, struct hados_response *response);
 #define HADOS_WRONG_CHARACTER_IN_PATH		100006
 #define HADOS_NO_CONTENT_LENGTH_GIVEN		100007
 #define HADOS_NOT_ENOUGH_BYTES_RECEIVED		100008
-#define HADOS_OBJECT_NOT_FOUND				404404
-#define HADOS_OBJECT_FOUND					200200
+#define HADOS_OBJECT_NOT_FOUND				404
+#define HADOS_OBJECT_FOUND					200
 

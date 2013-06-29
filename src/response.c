@@ -65,7 +65,9 @@ void hados_response_write(struct hados_response *response,
 		struct hados_context *context, struct hados_request *request) {
 	if (response->status == HADOS_BINARY_RESULT)
 		return;
-	hados_context_printf(context, "Content-type: application/json\r\n\r\n");
+	hados_context_printf(context, "Content-type: application/json\r\n");
+	hados_context_printf(context, "X-Hados-Status: %d\r\n\r\n",
+			response->status);
 	hados_context_printf(context, "{\n\"version:\": 0.1");
 	if (request->command != NULL )
 		hados_context_printf(context, ",\n\"command\": \"%s\"",
