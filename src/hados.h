@@ -25,6 +25,16 @@
  */
 #pragma once
 
+#include "fcgi_stdio.h"
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <errno.h>
+#include <dirent.h>
+
 // defined in context.c
 
 struct hados_context {
@@ -43,33 +53,43 @@ void hados_context_free(struct hados_context *context);
 void hados_context_set_file_path(struct hados_context *context,
 		const char* path);
 
-//defined in parameters.c
+//defined in request.c
 
-struct hados_parameters {
+struct hados_request {
 	int count;
 	char *queryString;
 	char **keyvalue;
 	char **key;
 	char **value;
+	char *command;
+	struct timeval requestTime;
 };
 
-void hados_parameters_init(struct hados_parameters *parameters);
-void hados_parameters_free(struct hados_parameters *parameters);
-void hados_parameters_load(struct hados_parameters *parameters,
-		const char* queryString);
-char* hados_parameters_getvalue(struct hados_parameters *parameters,
-		const char* key);
+void hados_request_init(struct hados_request *request);
+void hados_request_free(struct hados_request *request);
+void hados_request_load(struct hados_request *request, const char* queryString);
+char* hados_request_getvalue(struct hados_request *request, const char* key);
+
+//defined in response.c
+
+struct hados_response {
+	int status;
+	char *message;
+};
+
+void hados_response_init(struct hados_response *response);
+void hados_response_free(struct hados_response *response);
+int hados_response_set_status(struct hados_response *response, int status,
+		const char* message);
+int hados_response_set_errno(struct hados_response *response);
+int hados_response_set_success(struct hados_response *response);
+void hados_response_write(struct hados_response *response,
+		struct hados_context *context, struct hados_request *request);
 
 //define in commands.c
 
-int hados_put(struct hados_context *context,
-		struct hados_parameters *parameters);
-int hados_exists(struct hados_context *context,
-		struct hados_parameters *parameters);
-int hados_get(struct hados_context *context,
-		struct hados_parameters *parameters);
-int hados_delete(struct hados_context *context,
-		struct hados_parameters *parameters);
+void hados_command_dispatch(struct hados_context *context,
+		struct hados_request *request, struct hados_response *response);
 
 //defined in external.c
 
@@ -78,7 +98,7 @@ struct MemoryStruct {
 	size_t size;
 };
 
-int hados_external_put_if_exists(struct hados_context *contex);
+int hados_external_put_if_exists(struct hados_context *context);
 
 //define in utils.c
 

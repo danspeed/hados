@@ -24,9 +24,6 @@
  ============================================================================
  */
 
-#include "fcgi_stdio.h"
-#include <stdlib.h>
-#include <string.h>
 #include "hados.h"
 
 void hados_context_init(struct hados_context *context) {

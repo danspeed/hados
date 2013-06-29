@@ -24,11 +24,6 @@
  ============================================================================
  */
 
-#include "fcgi_stdio.h"
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-
 #include "hados.h"
 
 int main(void) {
@@ -37,74 +32,25 @@ int main(void) {
 	struct hados_context context;
 
 	// Parameters array pass to commands
-	struct hados_parameters parameters;
+	struct hados_request request;
 
-	// The query string
-	char *query_string;
-
-	// The command requested
-	char *command;
-
-	// The final status/error of the commmand
-	int status;
-
-	// Variables to compute elapsed time
-	struct timeval t1, t2;
-	long elapsedTime;
+	struct hados_response response;
 
 	hados_context_init(&context);
-	hados_parameters_init(&parameters);
 
 	while (FCGI_Accept() >= 0) {
 
 		//Main loop
 		hados_context_load(&context);
+		hados_request_init(&request);
+		hados_request_load(&request, getenv("QUERY_STRING"));
+		hados_response_init(&response);
 
-		gettimeofday(&t1, NULL );
+		hados_command_dispatch(&context, &request, &response);
 
-		status = 0;
-		command = NULL;
-		query_string = getenv("QUERY_STRING");
-		if (query_string != NULL && strlen(query_string) > 0) {
-			hados_parameters_load(&parameters, query_string);
-			command = hados_parameters_getvalue(&parameters, "cmd");
-		}
-
-		if (command != NULL ) {
-
-			if (strcmp(command, "put") == 0) {
-				status = hados_put(&context, &parameters);
-				if (status == HADOS_SUCCESS)
-					hados_external_put_if_exists(&context);
-			} else if (strcmp(command, "get") == 0) {
-				status = hados_get(&context, &parameters);
-			} else if (strcmp(command, "delete") == 0) {
-				status = hados_delete(&context, &parameters);
-			} else if (strcmp(command, "exists") == 0) {
-				status = hados_exists(&context, &parameters);
-			} else {
-				status = HADOS_UNKNOWN_COMMAND;
-			}
-		}
-
-		if (status != HADOS_BINARY_RESULT) {
-			printf("Content-type: application/json\r\n\r\n");
-			printf("{\n\"version:\": 0.1\n");
-			if (command != NULL )
-				printf(",\n\"command\": \"%s\"", command);
-			printf(",\n\"param_count\": %d", parameters.count);
-			if (context.data_dir != NULL )
-				printf(",\n\"data_dir\": \"%s\"", context.data_dir);
-			printf(",\n\"status\": %d", status);
-
-			//Compute elapsed time
-			gettimeofday(&t2, NULL );
-			elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;      // sec to ms
-			elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;   // us to ms
-			printf(",\n\"time_ms\": %ld", elapsedTime);
-
-			printf("}\n");
-		}
+		hados_response_write(&response, &context, &request);
+		hados_response_free(&response);
+		hados_request_free(&request);
 	}
 
 	hados_context_free(&context);
