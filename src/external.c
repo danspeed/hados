@@ -71,15 +71,15 @@ static size_t writeHeaderCallback(void *content, size_t size, size_t nmemb,
 		void *userdata) {
 	size_t realsize = size * nmemb;
 	struct CallbackStruct *callback = (struct CallbackStruct *) userdata;
-	if (content == NULL)
+	if (content == NULL )
 		return realsize;
 	char *saveptr;
 	char *header = strdup(content);
 	char* token = strtok_r(header, ":", &saveptr);
-	if (token != NULL) {
+	if (token != NULL ) {
 		if (strcmp(token, "X-Hados-Status") == 0) {
 			token = strtok_r(NULL, ": ", &saveptr);
-			if (token != NULL)
+			if (token != NULL )
 				callback->hados_status = atoi(token);
 		}
 	}
@@ -108,17 +108,31 @@ static void curlGet(const char* url, struct CallbackStruct *callback) {
 	curl_global_cleanup();
 }
 
-int hados_external_exists(struct hados_response *response, const char* url,
+char* hados_external_url(const char* node_url, const char *cmd,
+		const char *path) {
+	int l = strlen(node_url) + strlen(cmd) + 5;
+	if (path != NULL )
+		l += strlen(path) + 6;
+	char *url = malloc(l * sizeof(char) + 1);
+	strcpy(url, node_url);
+	strcat(url, "?cmd=");
+	strcat(url, cmd);
+	if (path != NULL ) {
+		strcat(url, "&path=");
+		strcat(url, path);
+	}
+	return url;
+}
+
+int hados_external_exists(struct hados_response *response, const char* node_url,
 		const char* path) {
-	char urlQuery[2048];
-	strcpy(urlQuery, url);
-	strcat(urlQuery, "?cmd=exists&path=");
-	strcat(urlQuery, path);
+	char *url = hados_external_url(node_url, "exists", path);
 	struct CallbackStruct callback;
 	hados_callback_init(&callback, response);
 	callback.response = response;
-	curlGet(urlQuery, &callback);
+	curlGet(url, &callback);
 	hados_callback_free(&callback);
+	free(url);
 	return callback.hados_status;
 }
 

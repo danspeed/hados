@@ -49,6 +49,9 @@ int hados_response_set_status(struct hados_response *response, int status,
 	case HADOS_OBJECT_NOT_FOUND:
 		response->http_status = 404;
 		break;
+	case HADOS_REDIRECT:
+		response->http_status = 302;
+		break;
 	default:
 		response->http_status = 500;
 		break;
@@ -79,6 +82,8 @@ void hados_response_write(struct hados_response *response,
 		return;
 	if (response->http_status != 200)
 		hados_context_printf(context, "Status: %d\r\n", response->http_status);
+	if (response->http_status == 302)
+		hados_context_printf(context, "Location: %s\r\n", response->message);
 	hados_context_printf(context, "Content-type: application/json\r\n");
 	hados_context_printf(context, "X-Hados-Status: %d\r\n\r\n",
 			response->status);
@@ -86,13 +91,9 @@ void hados_response_write(struct hados_response *response,
 	if (request->command != NULL )
 		hados_context_printf(context, ",\n\"command\": \"%s\"",
 				request->command);
-	hados_context_printf(context, ",\n\"param_count\": %d", request->count);
 	if (context->bytes_received != 0)
 		hados_context_printf(context, ",\n\"bytes_received\": %d",
 				context->bytes_received);
-	if (context->data_dir != NULL )
-		hados_context_printf(context, ",\n\"data_dir\": \"%s\"",
-				context->data_dir);
 	hados_context_printf(context, ",\n\"status\": %d", response->status);
 	if (response->message != NULL )
 		hados_context_printf(context, ",\n\"message\": \"%s\"",

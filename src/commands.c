@@ -159,6 +159,25 @@ static int hados_command_cluster_exists(struct hados_context *context,
 	return hados_response_set_status(response, HADOS_SUCCESS, s);
 }
 
+static int hados_command_cluster_get(struct hados_context *context,
+		struct hados_request *request, struct hados_response *response) {
+	if (hados_command_get(context, request, response) == HADOS_SUCCESS)
+		return HADOS_SUCCESS;
+	int i;
+	for (i = 0; i < context->nodesNumber; i++) {
+		if (hados_external_exists(response, context->nodeArray[i],
+				request->paramPath) == 200) {
+			char *url = hados_external_url(context->nodeArray[i], "get",
+					request->paramPath);
+			hados_response_set_status(response, HADOS_REDIRECT, url);
+			free(url);
+			return response->status;
+		}
+	}
+	return hados_response_set_status(response, HADOS_OBJECT_NOT_FOUND,
+			"Object/file not found on the cluster");
+}
+
 void hados_command_dispatch(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
 
@@ -175,6 +194,8 @@ void hados_command_dispatch(struct hados_context *context,
 		hados_command_exists(context, request, response);
 	} else if (strcmp(request->command, "cluster_exists") == 0) {
 		hados_command_cluster_exists(context, request, response);
+	} else if (strcmp(request->command, "cluster_get") == 0) {
+		hados_command_cluster_get(context, request, response);
 	} else {
 		hados_response_set_status(response, HADOS_UNKNOWN_COMMAND,
 				"Unknown command");
