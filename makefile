@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-c -Wall -I/usr/local/include
-LDFLAGS=-L/usr/local/lib -lfcgi -lcurl
+CFLAGS=-c -Wall
+LDFLAGS=-lfcgi -lcurl
 SOURCES=$(wildcard src/*.c)
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=binary/hados
