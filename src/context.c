@@ -107,7 +107,7 @@ void hados_context_load(struct hados_context *context) {
 				}
 			} else {
 				if (errno == ENOENT) {
-					err = mkdir(context->file_dir, S_IXUSR);
+					err = mkdir(context->file_dir, S_IRWXU);
 				} else
 					hados_context_error_printf(context,
 							"Issue with file directory %s", context->file_dir);
