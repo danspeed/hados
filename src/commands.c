@@ -26,28 +26,20 @@
 
 #include "hados.h"
 
-static int checkDataDir(const char *data_dir, struct hados_response *response) {
-	if (data_dir == NULL || strlen(data_dir) == 0)
+static int checkDataFileDir(struct hados_context *context,
+		struct hados_response *response) {
+	if (context->data_dir == NULL || strlen(context->data_dir) == 0)
 		return hados_response_set_status(response, HADOS_DATADIR_NOT_SET,
 				"The data directory has not been set");
-	struct stat s;
-	int err = stat(data_dir, &s);
-	if (err == -1) {
-		if (errno == ENOENT)
-			return hados_response_set_status(response, HADOS_DATADIR_NOT_SET,
-					"The data directory does not exist");
-		return hados_response_set_errno(response);
-	}
-	if (!S_ISDIR(s.st_mode))
-		return hados_response_set_status(response,
-				HADOS_DATADIR_IS_NOT_A_DIRECTORY,
-				"The data directory path is not a directory");
+	if (context->file_dir == NULL || strlen(context->file_dir) == 0)
+		return hados_response_set_status(response, HADOS_FILEDIR_NOT_SET,
+				"The file directory has not been set");
 	return hados_response_set_success(response);
 }
 
 static int hados_command_put(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
-	if (checkDataDir(context->data_dir, response) != HADOS_SUCCESS)
+	if (checkDataFileDir(context, response) != HADOS_SUCCESS)
 		return response->status;
 	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;
@@ -86,7 +78,7 @@ static int hados_command_put(struct hados_context *context,
 
 static int hados_command_get(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
-	if (checkDataDir(context->data_dir, response) != HADOS_SUCCESS)
+	if (checkDataFileDir(context, response) != HADOS_SUCCESS)
 		return response->status;
 	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;
@@ -112,7 +104,7 @@ static int hados_command_get(struct hados_context *context,
 
 static int hados_command_delete(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
-	if (checkDataDir(context->data_dir, response) != HADOS_SUCCESS)
+	if (checkDataFileDir(context, response) != HADOS_SUCCESS)
 		return response->status;
 	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;
@@ -130,7 +122,7 @@ static int hados_command_delete(struct hados_context *context,
 
 static int hados_command_exists(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
-	if (checkDataDir(context->data_dir, response) != HADOS_SUCCESS)
+	if (checkDataFileDir(context, response) != HADOS_SUCCESS)
 		return response->status;
 	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;

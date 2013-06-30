@@ -29,6 +29,7 @@
 void hados_context_init(struct hados_context *context) {
 	FCGX_InitRequest(&context->fcgxRequest, 0, 0);
 	context->data_dir = NULL;
+	context->file_dir = NULL;
 	context->node = NULL;
 	context->nodes = NULL;
 	context->nodeArray = NULL;
@@ -55,14 +56,68 @@ int hados_context_printf(struct hados_context *context, const char *format, ...)
 	va_end(argList);
 	return result;
 }
+
+int hados_context_error_printf(struct hados_context *context,
+		const char *format, ...) {
+	va_list argList;
+	va_start(argList, format);
+	int result = FCGX_VFPrintF(context->fcgxRequest.err, format, argList);
+	va_end(argList);
+	return result;
+}
 /**
  * Load the global context of the server
  */
 void hados_context_load(struct hados_context *context) {
 	context->bytes_received = 0;
+
+	struct stat st;
+
 	// Retrieve the data directory if not already set
-	if (context->data_dir == NULL )
+	if (context->data_dir == NULL ) {
 		context->data_dir = hados_context_get_env_dup(context, "HADOS_DATADIR");
+		int err = stat(context->data_dir, &st);
+		if (err == 0) {
+			if (!S_ISDIR(st.st_mode)) {
+				hados_context_error_printf(context,
+						"HADOS_DATADIR is not a directory: %s",
+						context->data_dir);
+				err = -1;
+			}
+		} else {
+			if (errno == ENOENT)
+				hados_context_error_printf(context,
+						"HADOS_DATADIR does not exists: %s", context->data_dir);
+		}
+		//Check and or create the file directory
+		if (err == 0) {
+			if (context->file_dir == NULL ) {
+				context->file_dir = malloc(
+						(strlen(context->data_dir) + 7) * sizeof(char));
+				hados_utils_concat_path(context->data_dir, "/files",
+						context->file_dir);
+			}
+			err = stat(context->file_dir, &st);
+			if (err == 0) {
+				if (!S_ISDIR(st.st_mode)) {
+					hados_context_error_printf(context,
+							"File path is not a directory: %s",
+							context->file_dir);
+					err = -1;
+				}
+			} else {
+				if (errno == ENOENT) {
+					err = mkdir(context->file_dir, S_IXUSR);
+				} else
+					hados_context_error_printf(context,
+							"Issue with file directory %s", context->file_dir);
+			}
+			if (err == -1) {
+				free(context->file_dir);
+				context->file_dir = NULL;
+			}
+		}
+	}
 
 	// Retrieve the my public URL if not already set
 	if (context->node == NULL )
@@ -114,6 +169,10 @@ void hados_context_free(struct hados_context *context) {
 	if (context->data_dir != NULL ) {
 		free(context->data_dir);
 		context->data_dir = NULL;
+	}
+	if (context->file_dir != NULL ) {
+		free(context->file_dir);
+		context->file_dir = NULL;
 	}
 	if (context->node != NULL ) {
 		free(context->node);

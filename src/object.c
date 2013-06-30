@@ -75,9 +75,9 @@ int hados_object_init(struct hados_object *object,
 	}
 
 	object->filepath = malloc(
-			(strlen(request->paramPath) + strlen(context->data_dir) + 2)
+			(strlen(request->paramPath) + strlen(context->file_dir) + 2)
 					* sizeof(char));
-	hados_utils_concat_path(context->data_dir, request->paramPath,
+	hados_utils_concat_path(context->file_dir, request->paramPath,
 			object->filepath);
 	return HADOS_SUCCESS;
 }

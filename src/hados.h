@@ -59,7 +59,8 @@ struct hados_context {
 	int nodesNumber; // Number of nodes in the cluster
 	char *nodes; // The string defining the list of nodes
 	char **nodeArray; // Node of the cluster
-	char *data_dir; // The directory where the index are stored
+	char *data_dir; // The directory where the data are stored
+	char *file_dir; // The directory where the files are stored
 	struct hados_object object; // The current file object
 	long bytes_received;
 };
@@ -91,6 +92,8 @@ const char* hados_context_get_env(struct hados_context *context,
 char* hados_context_get_env_dup(struct hados_context *context,
 		const char* param);
 int hados_context_printf(struct hados_context *context, const char *format, ...);
+int hados_context_error_printf(struct hados_context *context,
+		const char *format, ...);
 void hados_context_free(struct hados_context *context);
 int hados_context_set_object(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response);
@@ -146,8 +149,7 @@ int hados_utils_mkdirs(const char *file_path, struct hados_response *response);
 #define HADOS_UNKNOWN_COMMAND				888888
 #define HADOS_INTERNAL_ERROR				999999
 #define HADOS_DATADIR_NOT_SET				100001
-#define HADOS_DATADIR_DONT_EXISTS			100002
-#define HADOS_DATADIR_IS_NOT_A_DIRECTORY	100003
+#define HADOS_FILEDIR_NOT_SET				100002
 #define HADOS_PATH_IS_MISSING				100004
 #define HADOS_PATH_TOO_LONG					100005
 #define HADOS_WRONG_CHARACTER_IN_PATH		100006
