@@ -11,7 +11,7 @@ Copyright (C) 2013 Jaeksoft / Emmanuel Keller
 [The source code is available on GIT repository](http://github.com/emmanuel-keller/hados)
 
 ### Binary package
-[Compiled binaries for Linux and MacOSX](http://github.com/emmanuel-keller/hados/tree/master/binary) (64 bits) are available on our GIT repository
+[Compiled binaries for Linux and MacOSX](http://sourceforge.net/projects/hados/files/) (64 bits) are available at SourceForge
 
 ### Issues
 Please report [issues here](http://github.com/emmanuel-keller/hados/issues)
