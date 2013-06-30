@@ -3,7 +3,7 @@ CFLAGS=-c -Wall
 LDFLAGS=-lfcgi -lcurl
 SOURCES=$(wildcard src/*.c)
 OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=binary/hados
+EXECUTABLE=binary/hados.fcgi
 
 all: $(SOURCES) $(EXECUTABLE)
 	
