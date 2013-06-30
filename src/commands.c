@@ -147,14 +147,23 @@ static int hados_command_exists(struct hados_context *context,
 
 static int hados_command_cluster_exists(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
+	char s[2048];
 	int i;
 	int found = 0;
 	for (i = 0; i < context->nodesNumber; i++) {
-		if (hados_external_exists(response, context->nodeArray[i],
-				request->paramPath) == 200)
+		char *currentNode = context->nodeArray[i];
+		if (hados_external_exists(response, currentNode, request->paramPath)
+				== 200) {
+			if (found == 0)
+				sprintf(s, ", \"found_on\":[ \"%s\"", currentNode);
+			else
+				sprintf(s, ", \"%s\"", currentNode);
+			hados_response_more_json(response, s);
 			found++;
+		}
 	}
-	char s[256];
+	if (found > 0)
+		hados_response_more_json(response, "]");
 	sprintf(s, "Found %d over %d", found, i);
 	return hados_response_set_status(response, HADOS_SUCCESS, s);
 }

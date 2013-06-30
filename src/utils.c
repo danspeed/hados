@@ -26,6 +26,9 @@
 
 #include "hados.h"
 
+/**
+ * Concat the root_dir with the file_name using a / separator.
+ */
 char* hados_utils_concat_path(const char *root_dir, const char *file_name,
 		char *buffer) {
 	strcpy(buffer, root_dir);
@@ -39,6 +42,25 @@ char* hados_utils_concat_path(const char *root_dir, const char *file_name,
 	return buffer;
 }
 
+/**
+ * Concat two strings, by allocating or reallocating memory if required.
+ */
+char* hados_utils_strcat(char* str, const char* add) {
+	if (add == NULL )
+		return NULL ;
+	if (strlen(add) == 0)
+		return str;
+	if (str == NULL )
+		return strdup(add);
+	size_t size = strlen(str) + strlen(add) + 1;
+	str = realloc(str, size * sizeof(char));
+	strcat(str, add);
+	return str;
+}
+
+/**
+ * Create all the required directory to build the path in the file system
+ */
 int hados_utils_mkdirs(const char *file_path, struct hados_response *response) {
 	struct stat st;
 	char path[strlen(file_path) + 1];

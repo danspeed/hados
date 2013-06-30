@@ -43,10 +43,14 @@ struct hados_object {
 	char *filename;
 };
 
+/**
+ * Contains the information used to create the response. Handling HTTP result code and the JSON returned.
+ */
 struct hados_response {
-	int status;
-	int http_status;
-	char *message;
+	int status; // The status code
+	int http_status; // The HTTP code that will be returned
+	char *message; // The JSON message
+	char *morejson; // Any additional JSON formated message
 };
 
 struct hados_context {
@@ -105,6 +109,8 @@ void hados_response_init(struct hados_response *response);
 void hados_response_free(struct hados_response *response);
 int hados_response_set_status(struct hados_response *response, int status,
 		const char* message);
+void hados_response_more_json(struct hados_response *response,
+		const char* morejson);
 int hados_response_set_errno(struct hados_response *response);
 int hados_response_set_success(struct hados_response *response);
 void hados_response_write(struct hados_response *response,
@@ -126,6 +132,7 @@ int hados_external_exists(struct hados_response *response, const char* url,
 
 char* hados_utils_concat_path(const char *root_dir, const char *file_name,
 		char *buffer);
+char* hados_utils_strcat(char* str, const char* add);
 int hados_utils_mkdirs(const char *file_path, struct hados_response *response);
 
 // Constants
