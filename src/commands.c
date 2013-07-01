@@ -102,24 +102,6 @@ static int hados_command_get(struct hados_context *context,
 	return response->status;
 }
 
-static int hados_command_delete(struct hados_context *context,
-		struct hados_request *request, struct hados_response *response) {
-	if (checkDataFileDir(context, response) != HADOS_SUCCESS)
-		return response->status;
-	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
-		return response->status;
-	struct stat st;
-	if (stat(context->object.filepath, &st) != 0) {
-		if (errno == ENOENT)
-			return hados_response_set_status(response, HADOS_OBJECT_NOT_FOUND,
-					"Object/file not found");
-		return hados_response_set_errno(response);
-	}
-	if (unlink(context->object.filepath) != 0)
-		return hados_response_set_errno(response);
-	return hados_response_set_success(response);
-}
-
 static int hados_command_exists(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
 	if (checkDataFileDir(context, response) != HADOS_SUCCESS)
@@ -135,6 +117,22 @@ static int hados_command_exists(struct hados_context *context,
 	}
 	return hados_response_set_status(response, HADOS_OBJECT_FOUND,
 			"Object/file exists");
+}
+
+static int hados_command_delete(struct hados_context *context,
+		struct hados_request *request, struct hados_response *response) {
+	if (checkDataFileDir(context, response) != HADOS_SUCCESS)
+		return response->status;
+	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
+		return response->status;
+	if (unlink(context->object.filepath) != 0) {
+		if (errno == ENOENT)
+			return hados_response_set_status(response, HADOS_OBJECT_NOT_FOUND,
+					"Object/file not found");
+		return hados_response_set_errno(response);
+	}
+	return hados_response_set_status(response, HADOS_SUCCESS,
+			"Object/file deleted");
 }
 
 static int hados_command_cluster_exists(struct hados_context *context,
@@ -179,6 +177,29 @@ static int hados_command_cluster_get(struct hados_context *context,
 			"Object/file not found on the cluster");
 }
 
+static int hados_command_cluster_delete(struct hados_context *context,
+		struct hados_request *request, struct hados_response *response) {
+	char s[2048];
+	int i;
+	int found = 0;
+	for (i = 0; i < context->nodesNumber; i++) {
+		char *currentNode = context->nodeArray[i];
+		if (hados_external_delete(response, currentNode, request->paramPath)
+				== 0) {
+			if (found == 0)
+				sprintf(s, ", \"found_on\":[ \"%s\"", currentNode);
+			else
+				sprintf(s, ", \"%s\"", currentNode);
+			hados_response_more_json(response, s);
+			found++;
+		}
+	}
+	if (found > 0)
+		hados_response_more_json(response, "]");
+	sprintf(s, "delete %d over %d node(s)", found, i);
+	return hados_response_set_status(response, HADOS_SUCCESS, s);
+}
+
 void hados_command_dispatch(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
 
@@ -197,6 +218,8 @@ void hados_command_dispatch(struct hados_context *context,
 		hados_command_cluster_exists(context, request, response);
 	} else if (strcmp(request->command, "cluster_get") == 0) {
 		hados_command_cluster_get(context, request, response);
+	} else if (strcmp(request->command, "cluster_delete") == 0) {
+		hados_command_cluster_delete(context, request, response);
 	} else {
 		hados_response_set_status(response, HADOS_UNKNOWN_COMMAND,
 				"Unknown command");

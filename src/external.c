@@ -124,9 +124,9 @@ char* hados_external_url(const char* node_url, const char *cmd,
 	return url;
 }
 
-int hados_external_exists(struct hados_response *response, const char* node_url,
-		const char* path) {
-	char *url = hados_external_url(node_url, "exists", path);
+static int hados_external_command(struct hados_response *response,
+		const char* node_url, const char *command, const char* path) {
+	char *url = hados_external_url(node_url, command, path);
 	struct CallbackStruct callback;
 	hados_callback_init(&callback, response);
 	callback.response = response;
@@ -136,3 +136,12 @@ int hados_external_exists(struct hados_response *response, const char* node_url,
 	return callback.hados_status;
 }
 
+int hados_external_exists(struct hados_response *response, const char* node_url,
+		const char* path) {
+	return hados_external_command(response, node_url, "exists", path);
+}
+
+int hados_external_delete(struct hados_response *response, const char* node_url,
+		const char* path) {
+	return hados_external_command(response, node_url, "delete", path);
+}
