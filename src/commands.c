@@ -108,6 +108,15 @@ static int hados_command_exists(struct hados_context *context,
 		return response->status;
 	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;
+	struct statvfs stvfs;
+	if (statvfs(context->data_dir, &stvfs) != 0)
+		return hados_response_set_errno(response);
+	char s[256];
+	unsigned long free_rate = (stvfs.f_blocks % stvfs.f_bavail != 0);
+	unsigned long free_space = (stvfs.f_bavail * stvfs.f_frsize) / 1024;
+	sprintf(s, ",\n\"space_free\": %lu,\n\"free_rate\": %lu", free_space,
+			free_rate);
+	hados_response_more_json(response, s);
 	struct stat st;
 	if (stat(context->object.filepath, &st) != 0) {
 		if (errno == ENOENT)
