@@ -28,6 +28,7 @@
 
 void hados_context_init(struct hados_context *context) {
 	FCGX_InitRequest(&context->fcgxRequest, 0, 0);
+	hados_object_init(&context->object);
 	context->data_dir = NULL;
 	context->file_dir = NULL;
 	context->node = NULL;
@@ -153,7 +154,7 @@ void hados_context_load(struct hados_context *context) {
 
 int hados_context_set_object(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
-	return hados_object_init(&context->object, context, request, response);
+	return hados_object_load(&context->object, context, request, response);
 }
 
 void hados_context_free(struct hados_context *context) {

@@ -26,9 +26,15 @@
 
 #include "hados.h"
 
-int hados_object_init(struct hados_object *object,
+void hados_object_init(struct hados_object *object) {
+	object->filepath = NULL;
+	object->filename = NULL;
+}
+
+int hados_object_load(struct hados_object *object,
 		struct hados_context *context, struct hados_request *request,
 		struct hados_response *response) {
+	hados_object_free(object);
 	if (request->paramPath == NULL )
 		return hados_response_set_status(response, HADOS_PATH_IS_MISSING,
 				"The path is missing");

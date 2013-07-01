@@ -78,7 +78,8 @@ struct hados_request {
 
 // defined in object.c
 
-int hados_object_init(struct hados_object *hados_object,
+void hados_object_init(struct hados_object *object);
+int hados_object_load(struct hados_object *hados_object,
 		struct hados_context *context, struct hados_request *request,
 		struct hados_response *response);
 void hados_object_free(struct hados_object *hados_object);
