@@ -31,6 +31,7 @@ void hados_context_init(struct hados_context *context) {
 	hados_object_init(&context->object);
 	context->data_dir = NULL;
 	context->file_dir = NULL;
+	context->temp_dir = NULL;
 	context->node = NULL;
 	context->nodes = NULL;
 	context->nodeArray = NULL;
@@ -66,6 +67,7 @@ int hados_context_error_printf(struct hados_context *context,
 	va_end(argList);
 	return result;
 }
+
 /**
  * Load the global context of the server
  */
@@ -98,24 +100,24 @@ void hados_context_load(struct hados_context *context) {
 				hados_utils_concat_path(context->data_dir, "/files",
 						context->file_dir);
 			}
-			err = stat(context->file_dir, &st);
-			if (err == 0) {
-				if (!S_ISDIR(st.st_mode)) {
-					hados_context_error_printf(context,
-							"File path is not a directory: %s",
-							context->file_dir);
-					err = -1;
-				}
-			} else {
-				if (errno == ENOENT) {
-					err = mkdir(context->file_dir, S_IRWXU);
-				} else
-					hados_context_error_printf(context,
-							"Issue with file directory %s", context->file_dir);
-			}
+			err = hados_utils_mkdir_if_not_exists(context, context->file_dir);
 			if (err == -1) {
 				free(context->file_dir);
 				context->file_dir = NULL;
+			}
+		}
+		//Check and or create the tmp directory
+		if (err == 0) {
+			if (context->temp_dir == NULL ) {
+				context->temp_dir = malloc(
+						(strlen(context->data_dir) + 7) * sizeof(char));
+				hados_utils_concat_path(context->data_dir, "/temp",
+						context->temp_dir);
+			}
+			err = hados_utils_mkdir_if_not_exists(context, context->temp_dir);
+			if (err == -1) {
+				free(context->temp_dir);
+				context->temp_dir = NULL;
 			}
 		}
 	}
@@ -174,6 +176,10 @@ void hados_context_free(struct hados_context *context) {
 	if (context->file_dir != NULL ) {
 		free(context->file_dir);
 		context->file_dir = NULL;
+	}
+	if (context->temp_dir != NULL ) {
+		free(context->temp_dir);
+		context->temp_dir = NULL;
 	}
 	if (context->node != NULL ) {
 		free(context->node);

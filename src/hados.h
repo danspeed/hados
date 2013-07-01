@@ -62,6 +62,7 @@ struct hados_context {
 	char **nodeArray; // Node of the cluster
 	char *data_dir; // The directory where the data are stored
 	char *file_dir; // The directory where the files are stored
+	char *temp_dir; // The directory where the files are stored
 	struct hados_object object; // The current file object
 	long bytes_received;
 };
@@ -75,6 +76,11 @@ struct hados_request {
 	char *command;
 	char *paramPath;
 	struct timeval requestTime;
+};
+
+struct hados_tempfile {
+	char *path;
+	FILE *fd;
 };
 
 // defined in object.c
@@ -141,6 +147,15 @@ char* hados_utils_concat_path(const char *root_dir, const char *file_name,
 		char *buffer);
 char* hados_utils_strcat(char* str, const char* add);
 int hados_utils_mkdirs(const char *file_path, struct hados_response *response);
+int hados_utils_mkdir_if_not_exists(struct hados_context *context,
+		const char *dir_path);
+
+// define in tempfile.c
+int hados_tempfile_new(struct hados_tempfile *tempfile,
+		struct hados_context *context, struct hados_response *response);
+void hados_tempfile_free(struct hados_tempfile *tempfile);
+int hados_tempfile_upload(struct hados_tempfile *tempfile,
+		struct hados_context *context, struct hados_response *response);
 
 // Constants
 

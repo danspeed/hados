@@ -43,36 +43,21 @@ static int hados_command_put(struct hados_context *context,
 		return response->status;
 	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
 		return response->status;
-	const char* content_length = hados_context_get_env(context,
-			"CONTENT_LENGTH");
-	long contentLength = 0;
-	if (content_length != NULL )
-		contentLength = atol(content_length);
-	if (contentLength == 0)
-		return hados_response_set_status(response,
-				HADOS_NO_CONTENT_LENGTH_GIVEN, "Missing content length header");
-	if (hados_utils_mkdirs(context->object.filepath, response) != HADOS_SUCCESS)
+	struct hados_tempfile tempfile;
+	if (hados_tempfile_new(&tempfile, context, response) != HADOS_SUCCESS)
 		return response->status;
-	FILE *file = fopen(context->object.filepath, "wb");
-	if (file == NULL )
-		return hados_response_set_errno(response);
-	int c;
-	context->bytes_received = 0;
-	for (;;) {
-		c = FCGX_GetChar(context->fcgxRequest.in);
-		if (c == EOF) {
-			break;
-		}
-		context->bytes_received++;
-		if (fputc(c, file) == EOF) {
-			hados_response_set_errno(response);
-			break;
-		}
+	if (hados_tempfile_upload(&tempfile, context, response) != HADOS_SUCCESS) {
+		hados_tempfile_free(&tempfile);
+		return response->status;
 	}
-	fclose(file);
-	if (context->bytes_received != contentLength)
-		return hados_response_set_status(response,
-				HADOS_NOT_ENOUGH_BYTES_RECEIVED, "Not enough bytes received");;
+	if (hados_utils_mkdirs(context->object.filepath, response) != HADOS_SUCCESS) {
+		hados_tempfile_free(&tempfile);
+		return response->status;
+	}
+	if (rename(tempfile.path, context->object.filepath) == -1) {
+		hados_tempfile_free(&tempfile);
+		hados_response_set_errno(response);
+	}
 	return hados_response_set_success(response);
 }
 
@@ -167,6 +152,28 @@ static int hados_command_cluster_exists(struct hados_context *context,
 	return hados_response_set_status(response, HADOS_SUCCESS, s);
 }
 
+static int hados_command_cluster_put(struct hados_context *context,
+		struct hados_request *request, struct hados_response *response) {
+	char s[2048];
+	int i;
+	int found = 0;
+	for (i = 0; i < context->nodesNumber; i++) {
+		char *currentNode = context->nodeArray[i];
+		if (hados_external_exists(response, currentNode, request->paramPath)
+				== 200) {
+			// PUT
+			if (found == 0)
+				sprintf(s, ", \"put_on\":[ \"%s\"", currentNode);
+			else
+				sprintf(s, ", \"%s\"", currentNode);
+		}
+	}
+	if (found > 0)
+		hados_response_more_json(response, "]");
+	sprintf(s, "Put %d over %d", found, i);
+	return hados_response_set_status(response, HADOS_SUCCESS, s);
+}
+
 static int hados_command_cluster_get(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response) {
 	if (hados_command_get(context, request, response) == HADOS_SUCCESS)
@@ -223,6 +230,8 @@ void hados_command_dispatch(struct hados_context *context,
 		hados_command_delete(context, request, response);
 	} else if (strcmp(request->command, "exists") == 0) {
 		hados_command_exists(context, request, response);
+	} else if (strcmp(request->command, "cluster_put") == 0) {
+		hados_command_cluster_put(context, request, response);
 	} else if (strcmp(request->command, "cluster_exists") == 0) {
 		hados_command_cluster_exists(context, request, response);
 	} else if (strcmp(request->command, "cluster_get") == 0) {

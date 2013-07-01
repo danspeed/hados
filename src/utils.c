@@ -85,3 +85,24 @@ int hados_utils_mkdirs(const char *file_path, struct hados_response *response) {
 	}
 	return hados_response_set_success(response);
 }
+
+int hados_utils_mkdir_if_not_exists(struct hados_context *context,
+		const char *dir_path) {
+	struct stat st;
+	int err = stat(dir_path, &st);
+	if (err == 0) {
+		if (!S_ISDIR(st.st_mode)) {
+			hados_context_error_printf(context,
+					"File path is not a directory: %s", context->file_dir);
+			err = -1;
+		}
+	} else {
+		if (errno == ENOENT) {
+			err = mkdir(dir_path, S_IRWXU);
+		} else
+			hados_context_error_printf(context,
+					"Issue while creating directory %s", dir_path);
+	}
+	return err;
+}
+
