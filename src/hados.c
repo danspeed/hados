@@ -57,6 +57,7 @@ static void *hados_thread(void * parm) {
 		hados_context_load(&context);
 		hados_request_init(&request);
 		hados_request_load(&request, &context);
+
 		hados_response_init(&response);
 
 		hados_command_dispatch(&context, &request, &response);

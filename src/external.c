@@ -25,7 +25,6 @@
  */
 
 #include "hados.h"
-#include <curl/curl.h>
 
 struct CallbackStruct {
 	char *body;
@@ -90,8 +89,6 @@ static void curlGet(const char* url, struct CallbackStruct *callback) {
 	CURL *curl_handle;
 	CURLcode res;
 
-	curl_global_init(CURL_GLOBAL_ALL);
-
 	curl_handle = curl_easy_init();
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
 	curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataCallback);
@@ -105,7 +102,6 @@ static void curlGet(const char* url, struct CallbackStruct *callback) {
 		perror(curl_easy_strerror(res));
 
 	curl_easy_cleanup(curl_handle);
-	curl_global_cleanup();
 }
 
 char* hados_external_url(const char* node_url, const char *cmd,

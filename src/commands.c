@@ -54,6 +54,8 @@ static int hados_command_put(struct hados_context *context,
 		hados_tempfile_free(&tempfile);
 		return response->status;
 	}
+	hados_context_error_printf(context, "RENAME: {%s} ",
+			context->object.filepath);
 	if (rename(tempfile.path, context->object.filepath) == -1) {
 		hados_tempfile_free(&tempfile);
 		hados_response_set_errno(response);
@@ -127,6 +129,42 @@ static int hados_command_delete(struct hados_context *context,
 	}
 	return hados_response_set_status(response, HADOS_SUCCESS,
 			"Object/file deleted");
+}
+
+static int hados_command_list(struct hados_context *context,
+		struct hados_request *request, struct hados_response *response) {
+	if (checkDataFileDir(context, response) != HADOS_SUCCESS)
+		return response->status;
+	if (hados_context_set_object(context, request, response) != HADOS_SUCCESS)
+		return response->status;
+	int found = 0;
+	char s[2048];
+	DIR *dp;
+	struct dirent *ep;
+	dp = opendir(context->object.filepath);
+	hados_context_error_printf(context, "object.filepath %s",
+			context->object.filepath);
+	if (dp == NULL )
+		return hados_response_set_errno(response);
+	while ((ep = readdir(dp)) != NULL ) {
+		if (strcmp(".", ep->d_name) == 0)
+			continue;
+		if (strcmp("..", ep->d_name) == 0)
+			continue;
+		char *type = DT_DIR == ep->d_type ? "dir" : "file";
+		if (found++ == 0)
+			sprintf(s, ", \"list\":[ { \"name\":\"%s\", \"type\":\"%s\" }",
+					ep->d_name, type);
+		else
+			sprintf(s, ", { \"name\":\"%s\", \"type\":\"%s\" }", ep->d_name,
+					type);
+		hados_response_more_json(response, s);
+	}
+	closedir(dp);
+	if (found > 0)
+		hados_response_more_json(response, "]");
+
+	return hados_response_set_success(response);
 }
 
 static int hados_command_cluster_exists(struct hados_context *context,
@@ -230,6 +268,8 @@ void hados_command_dispatch(struct hados_context *context,
 		hados_command_delete(context, request, response);
 	} else if (strcmp(request->command, "exists") == 0) {
 		hados_command_exists(context, request, response);
+	} else if (strcmp(request->command, "list") == 0) {
+		hados_command_list(context, request, response);
 	} else if (strcmp(request->command, "cluster_put") == 0) {
 		hados_command_cluster_put(context, request, response);
 	} else if (strcmp(request->command, "cluster_exists") == 0) {

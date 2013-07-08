@@ -36,6 +36,7 @@ void hados_context_init(struct hados_context *context) {
 	context->nodes = NULL;
 	context->nodeArray = NULL;
 	context->nodesNumber = 0;
+	curl_global_init(CURL_GLOBAL_ALL);
 }
 
 const char* hados_context_get_env(struct hados_context *context,
@@ -64,7 +65,7 @@ int hados_context_error_printf(struct hados_context *context,
 	va_list argList;
 	va_start(argList, format);
 	int result = FCGX_VFPrintF(context->fcgxRequest.err, format, argList);
-	va_end(argList);
+	FCGX_FFlush(context->fcgxRequest.err);
 	return result;
 }
 
@@ -185,4 +186,5 @@ void hados_context_free(struct hados_context *context) {
 		free(context->node);
 		context->node = NULL;
 	}
+	curl_global_cleanup();
 }

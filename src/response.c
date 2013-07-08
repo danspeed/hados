@@ -122,7 +122,7 @@ void hados_response_write(struct hados_response *response,
 			response->status);
 
 	// Then we send the JSON content
-	hados_context_printf(context, "{\n\"version:\": 0.1");
+	hados_context_printf(context, "{\n\"version\": 0.1");
 	if (request->command != NULL )
 		hados_context_printf(context, ",\n\"command\": \"%s\"",
 				request->command);
@@ -143,7 +143,7 @@ void hados_response_write(struct hados_response *response,
 
 	// Print any additional JSON information
 	if (response->morejson != NULL )
-		hados_context_printf(context, response->morejson);
+		hados_context_printf(context, "%s", response->morejson);
 
-	hados_context_printf(context, "\n}\n");
+	hados_context_printf(context, "%s", "\n}\n");
 }

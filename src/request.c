@@ -63,7 +63,13 @@ void hados_request_load(struct hados_request *request,
 
 	gettimeofday(&request->requestTime, NULL );
 
-	const char* queryString = hados_context_get_env(context, "QUERY_STRING");
+	const char* envQueryString = hados_context_get_env(context, "QUERY_STRING");
+
+	CURL *curl_handle = NULL;
+	curl_handle = curl_easy_init();
+	char *queryString = curl_easy_unescape(curl_handle, envQueryString, 0,
+			NULL );
+
 	// Count the number of parameters
 	if (queryString != NULL && strlen(queryString) > 0) {
 		char *qs = strdup(queryString);
@@ -74,18 +80,19 @@ void hados_request_load(struct hados_request *request,
 		}
 		free(qs);
 		if (request->count == 0)
-			return;
-		request->keyvalue = (char **) malloc(request->count * sizeof(char *));
-		request->key = (char **) malloc(request->count * sizeof(char *));
-		request->value = (char **) malloc(request->count * sizeof(char *));
+			goto exit;
+		request->keyvalue = (char **) malloc(request->count * sizeof(void *));
+		request->key = (char **) malloc(request->count * sizeof(void *));
+		request->value = (char **) malloc(request->count * sizeof(void *));
 
 		// Populate the keyvalue array
 		request->queryString = strdup(queryString);
-		token = strtok(qs, "&");
+		token = strtok(request->queryString, "&");
 		int pos = 0;
 		while (token != NULL ) {
-			request->keyvalue[pos++] = token;
+			request->keyvalue[pos] = token;
 			token = strtok(NULL, "&");
+			pos++;
 		}
 
 		// Populate the key/value array
@@ -98,6 +105,13 @@ void hados_request_load(struct hados_request *request,
 		request->command = hados_request_getvalue(request, "cmd");
 		request->paramPath = hados_request_getvalue(request, "path");
 	}
+
+	exit:
+
+	if (queryString != NULL )
+		curl_free(queryString);
+	if (curl_handle != NULL )
+		curl_easy_cleanup(curl_handle);
 }
 
 /**

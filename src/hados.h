@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include "fcgiapp.h"
+#include <curl/curl.h>
 
 struct hados_object {
 	char *filepath;
@@ -174,6 +175,7 @@ int hados_tempfile_upload(struct hados_tempfile *tempfile,
 #define HADOS_WRONG_CHARACTER_IN_PATH		100006
 #define HADOS_NO_CONTENT_LENGTH_GIVEN		100007
 #define HADOS_NOT_ENOUGH_BYTES_RECEIVED		100008
+#define HADOS_PATH_IS_NOT_A_DIRECTORY		100009
 #define HADOS_OBJECT_NOT_FOUND				404
 #define HADOS_OBJECT_FOUND					200
 #define HADOS_REDIRECT						302

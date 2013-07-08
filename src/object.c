@@ -35,6 +35,7 @@ int hados_object_load(struct hados_object *object,
 		struct hados_context *context, struct hados_request *request,
 		struct hados_response *response) {
 	hados_object_free(object);
+
 	if (request->paramPath == NULL )
 		return hados_response_set_status(response, HADOS_PATH_IS_MISSING,
 				"The path is missing");
@@ -51,35 +52,16 @@ int hados_object_load(struct hados_object *object,
 		return hados_response_set_status(response,
 				HADOS_WRONG_CHARACTER_IN_PATH,
 				"Not allowed character in the path");
+
+	if (strlen(request->paramPath) > HADOS_PATH_TOO_LONG)
+		return hados_response_set_status(response, HADOS_PATH_TOO_LONG,
+				"The path is too long");
 	// Find the name of the file
 	object->filename = strrchr(request->paramPath, '/');
 	if (object->filename == NULL )
 		object->filename = request->paramPath;
 	else
 		object->filename++;
-
-	char *pc = object->filename;
-	char c;
-	int pos = 0;
-	while ((c = *pc) != 0) {
-		pc++;
-		pos++;
-		if (c == 37 || c == 43 || c == 47 || c == 46)
-			continue;
-		if (c >= 48 && c <= 57)
-			continue;
-		if (c >= 65 && c <= 90)
-			continue;
-		if (c >= 97 && c <= 122)
-			continue;
-		if (pos > HADOS_MAX_PATH_LENGTH)
-			return hados_response_set_status(response, HADOS_PATH_TOO_LONG,
-					"The path is too long");
-		return hados_response_set_status(response,
-				HADOS_WRONG_CHARACTER_IN_PATH,
-				"Not allowed character in the path");
-	}
-
 	object->filepath = malloc(
 			(strlen(request->paramPath) + strlen(context->file_dir) + 2)
 					* sizeof(char));
