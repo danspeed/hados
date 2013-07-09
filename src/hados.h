@@ -83,7 +83,6 @@ struct hados_context {
 	char *file_dir; // The directory where the files are stored
 	char *temp_dir; // The directory where the files are stored
 	// Transaction global
-	CURL *curl; // CURL handle
 	FCGX_Request fcgxRequest; //Fast CGI
 	struct hados_request request; // Users request
 	struct hados_response response; // Users response

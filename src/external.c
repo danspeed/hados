@@ -90,6 +90,7 @@ static void hados_external_curl_get(struct hados_external *external,
 		const char* url) {
 	CURLcode res;
 	CURL *curl = curl_easy_init();
+
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeDataCallback);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void * ) external);
@@ -106,11 +107,12 @@ static void hados_external_curl_get(struct hados_external *external,
 
 char* hados_external_url(struct hados_external *external, const char* node_url,
 		const char *cmd, const char *path) {
-	char* esc_path = curl_easy_escape(external->context->curl, path, 0);
-	int l = strlen(node_url) + strlen(cmd) + 5;
+	CURL *curl = curl_easy_init();
+	char* esc_path = curl_easy_escape(curl, path, 0);
+	int l = strlen(node_url) + strlen(cmd) + 6;
 	if (path != NULL )
-		l += strlen(path) + 6;
-	char *url = malloc(l * sizeof(char) + 1);
+		l += strlen(esc_path) + 7;
+	char *url = malloc(l * sizeof(char));
 	strcpy(url, node_url);
 	strcat(url, "?cmd=");
 	strcat(url, cmd);
@@ -119,6 +121,7 @@ char* hados_external_url(struct hados_external *external, const char* node_url,
 		strcat(url, esc_path);
 	}
 	curl_free(esc_path);
+	curl_easy_cleanup(curl);
 	return url;
 }
 

@@ -53,10 +53,9 @@ static int hados_command_put(struct hados_context *context) {
 		hados_tempfile_free(&tempfile);
 		return context->response.status;
 	}
-	if (rename(tempfile.path, context->object.filepath) == -1) {
-		hados_tempfile_free(&tempfile);
+	if (rename(tempfile.path, context->object.filepath) == -1)
 		hados_response_set_errno(&context->response);
-	}
+	hados_tempfile_free(&tempfile);
 	return hados_response_set_success(&context->response);
 }
 
@@ -231,6 +230,17 @@ static int hados_command_cluster_put(struct hados_context *context) {
 	char s[2048];
 	int i;
 	int found = 0;
+
+	// First store the uploaded file locally as temp file
+	struct hados_tempfile tempfile;
+	if (hados_tempfile_new(&tempfile, context) != HADOS_SUCCESS)
+		return context->response.status;
+	if (hados_tempfile_upload(&tempfile, context) != HADOS_SUCCESS) {
+		hados_tempfile_free(&tempfile);
+		return context->response.status;
+	}
+
+	// Put it where it already exists
 	struct hados_external external;
 	for (i = 0; i < context->nodesNumber; i++) {
 		char *currentNode = context->nodeArray[i];
@@ -243,11 +253,13 @@ static int hados_command_cluster_put(struct hados_context *context) {
 			else
 				sprintf(s, ", \"%s\"", currentNode);
 		}
+		hados_context_error_printf(context, "CURRENTNODE %s ", currentNode);
 		hados_external_free(&external);
 	}
 	if (found > 0)
 		hados_response_more_json(&context->response, "]");
 	sprintf(s, "Put %d over %d", found, i);
+	hados_tempfile_free(&tempfile);
 	return hados_response_set_status(&context->response, HADOS_SUCCESS, s);
 }
 

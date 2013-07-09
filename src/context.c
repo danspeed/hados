@@ -32,7 +32,6 @@
 void hados_context_init(struct hados_context *context) {
 	FCGX_InitRequest(&context->fcgxRequest, 0, 0);
 	hados_object_init(&context->object, context);
-	context->curl = NULL;
 	context->data_dir = NULL;
 	context->file_dir = NULL;
 	context->temp_dir = NULL;
@@ -164,26 +163,22 @@ void hados_context_load(struct hados_context *context) {
 void hados_context_transaction_init(struct hados_context *context) {
 	hados_context_load(context);
 
-	context->curl = curl_easy_init();
+	CURL *curl = curl_easy_init();
 	const char* envQueryString = hados_context_get_env(context, "QUERY_STRING");
-	char *queryString = curl_easy_unescape(context->curl, envQueryString, 0,
-			NULL );
+	char *queryString = curl_easy_unescape(curl, envQueryString, 0, NULL );
 
 	hados_request_init(&context->request);
 	hados_request_load(&context->request, queryString);
 	hados_response_init(&context->response, context);
 	if (queryString != NULL )
 		curl_free(queryString);
+	curl_easy_cleanup(curl);
 }
 
 void hados_context_transaction_free(struct hados_context *context) {
 	hados_response_free(&context->response);
 	hados_request_free(&context->request);
 	hados_object_free(&context->object);
-	if (context->curl != NULL ) {
-		curl_easy_cleanup(context->curl);
-		context->curl = NULL;
-	}
 }
 
 int hados_context_set_object(struct hados_context *context) {
