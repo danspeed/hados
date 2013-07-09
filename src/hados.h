@@ -77,6 +77,7 @@ struct hados_context {
 	// Application global
 	char *node; // The public URL of myself
 	int nodesNumber; // Number of nodes in the cluster
+	int copy_number; // Default number of copy for a file
 	char *nodes; // The string defining the list of nodes
 	char **nodeArray; // Node of the cluster
 	char *data_dir; // The directory where the data are stored
@@ -205,6 +206,7 @@ int hados_utils_mkdir_if_not_exists(struct hados_context *context,
 json_value* hados_utils_json_get(json_value* json, const char* name);
 char *hados_utils_json_get_string(json_value* json, const char* name);
 json_value* hados_utils_json_get_array(json_value* json, const char* name);
+void hados_utils_perrorf(const char *format, ...);
 
 // define in tempfile.c
 
@@ -232,6 +234,7 @@ void hados_nodes_init(struct hados_nodes *nodes, int length);
 void hados_nodes_free(struct hados_nodes *nodes);
 void hados_nodes_set(struct hados_nodes *nodes, int pos, char val);
 void hados_nodes_random_set(struct hados_nodes *nodes, int howmany, char val);
+int hados_nodes_random_choose(struct hados_nodes *nodes, char val);
 
 // Constants
 

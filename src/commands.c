@@ -254,11 +254,10 @@ static int hados_command_cluster_put(struct hados_context *context) {
 		hados_external_free(&external);
 	}
 
-	int copy_count = 1;
+	int copy_count = context->copy_number;
 	char *count = hados_request_getvalue(&context->request, "count");
-	if (count != NULL ) {
+	if (count != NULL )
 		copy_count = atoi(count);
-	}
 	hados_nodes_random_set(&nodes, copy_count, 1);
 
 	int found = 0;
@@ -302,23 +301,41 @@ static int hados_command_cluster_get(struct hados_context *context) {
 	if (hados_command_get(context) == HADOS_SUCCESS)
 		return HADOS_SUCCESS;
 	int i;
+
+	struct hados_nodes nodes;
+	hados_nodes_init(&nodes, context->nodesNumber);
+
+	// Check where it already exists
 	struct hados_external external;
-	// TODO: Change for a random choice
+
 	for (i = 0; i < context->nodesNumber; i++) {
+		char *currentNode = context->nodeArray[i];
 		hados_external_init(&external, context);
-		if (hados_external_exists(&external, context->nodeArray[i],
-				context->request.paramPath) == 200) {
-			char *url = hados_external_url(&external, context->nodeArray[i],
-					"get", context->request.paramPath);
-			hados_response_set_status(&context->response, HADOS_REDIRECT, url);
-			free(url);
-			hados_external_free(&external);
-			return context->response.status;
-		}
+		if (hados_external_exists(&external, currentNode,
+				context->request.paramPath) == 200)
+			hados_nodes_set(&nodes, i, 1);
 		hados_external_free(&external);
 	}
-	return hados_response_set_status(&context->response, HADOS_OBJECT_NOT_FOUND,
-			"Object/file not found on the cluster");
+
+	// Select a node randomly
+	int selected_node = hados_nodes_random_choose(&nodes, 1);
+	if (selected_node != -1) {
+		hados_external_init(&external, context);
+		char *url = hados_external_url(&external,
+				context->nodeArray[selected_node], "get",
+				context->request.paramPath);
+
+		hados_response_set_status(&context->response, HADOS_REDIRECT, url);
+		free(url);
+		hados_external_free(&external);
+	} else
+		// Or return NOT FOUND
+		hados_response_set_status(&context->response, HADOS_OBJECT_NOT_FOUND,
+				"Object/file not found on the cluster");
+
+	hados_nodes_free(&nodes);
+	return context->response.status;
+
 }
 
 static int hados_command_cluster_delete(struct hados_context *context) {

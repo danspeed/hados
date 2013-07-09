@@ -39,6 +39,7 @@ void hados_context_init(struct hados_context *context) {
 	context->nodes = NULL;
 	context->nodeArray = NULL;
 	context->nodesNumber = 0;
+	context->copy_number = 0;
 	curl_global_init(CURL_GLOBAL_ALL);
 	setlocale(LC_ALL, "");
 }
@@ -157,6 +158,16 @@ void hados_context_load(struct hados_context *context) {
 				node = strtok(NULL, " ");
 			}
 		}
+	}
+
+	if (context->copy_number == 0) {
+		const char *s = hados_context_get_env(context, "HADOS_COPY_NUMBER");
+		if (s != NULL )
+			context->copy_number = atoi(s);
+		if (context->copy_number > context->nodesNumber)
+			context->copy_number = context->nodesNumber;
+		if (context->copy_number == 0)
+			context->copy_number = 1;
 	}
 }
 

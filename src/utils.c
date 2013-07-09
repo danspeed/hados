@@ -129,3 +129,11 @@ json_value* hados_utils_json_get_array(json_value* json, const char* name) {
 		return NULL ;
 	return json->type != json_array ? NULL : json;
 }
+
+void hados_utils_perrorf(const char *format, ...) {
+	va_list argList;
+	va_start(argList, format);
+	char s[2048];
+	vsnprintf(s, sizeof(s) - 1, format, argList);
+	perror(s);
+}
