@@ -101,7 +101,7 @@ int hados_utils_mkdir_if_not_exists(struct hados_context *context,
 			err = mkdir(dir_path, S_IRWXU);
 		} else
 			hados_context_error_printf(context,
-					"Issue while creating directory %s", dir_path);
+					"Issue while creating directory: %s", dir_path);
 	}
 	return err;
 }

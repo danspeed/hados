@@ -54,8 +54,6 @@ static int hados_command_put(struct hados_context *context,
 		hados_tempfile_free(&tempfile);
 		return response->status;
 	}
-	hados_context_error_printf(context, "RENAME: {%s} ",
-			context->object.filepath);
 	if (rename(tempfile.path, context->object.filepath) == -1) {
 		hados_tempfile_free(&tempfile);
 		hados_response_set_errno(response);
@@ -142,8 +140,6 @@ static int hados_command_list(struct hados_context *context,
 	DIR *dp;
 	struct dirent *ep;
 	dp = opendir(context->object.filepath);
-	hados_context_error_printf(context, "object.filepath %s",
-			context->object.filepath);
 	if (dp == NULL )
 		return hados_response_set_errno(response);
 	while ((ep = readdir(dp)) != NULL ) {
@@ -174,8 +170,8 @@ static int hados_command_cluster_exists(struct hados_context *context,
 	int found = 0;
 	for (i = 0; i < context->nodesNumber; i++) {
 		char *currentNode = context->nodeArray[i];
-		if (hados_external_exists(response, currentNode, request->paramPath)
-				== 200) {
+		if (hados_external_exists(context, response, currentNode,
+				request->paramPath) == 200) {
 			if (found == 0)
 				sprintf(s, ", \"found_on\":[ \"%s\"", currentNode);
 			else
@@ -197,8 +193,8 @@ static int hados_command_cluster_put(struct hados_context *context,
 	int found = 0;
 	for (i = 0; i < context->nodesNumber; i++) {
 		char *currentNode = context->nodeArray[i];
-		if (hados_external_exists(response, currentNode, request->paramPath)
-				== 200) {
+		if (hados_external_exists(context, response, currentNode,
+				request->paramPath) == 200) {
 			// PUT
 			if (found == 0)
 				sprintf(s, ", \"put_on\":[ \"%s\"", currentNode);
@@ -217,8 +213,9 @@ static int hados_command_cluster_get(struct hados_context *context,
 	if (hados_command_get(context, request, response) == HADOS_SUCCESS)
 		return HADOS_SUCCESS;
 	int i;
+	// TODO: Change for a random choice
 	for (i = 0; i < context->nodesNumber; i++) {
-		if (hados_external_exists(response, context->nodeArray[i],
+		if (hados_external_exists(context, response, context->nodeArray[i],
 				request->paramPath) == 200) {
 			char *url = hados_external_url(context->nodeArray[i], "get",
 					request->paramPath);
@@ -238,8 +235,8 @@ static int hados_command_cluster_delete(struct hados_context *context,
 	int found = 0;
 	for (i = 0; i < context->nodesNumber; i++) {
 		char *currentNode = context->nodeArray[i];
-		if (hados_external_delete(response, currentNode, request->paramPath)
-				== 0) {
+		if (hados_external_delete(context, response, currentNode,
+				request->paramPath) == 0) {
 			if (found == 0)
 				sprintf(s, ", \"found_on\":[ \"%s\"", currentNode);
 			else

@@ -26,6 +26,9 @@
 
 #include "hados.h"
 
+/**
+ * Call when the application start. Initialize the environment of the full application.
+ */
 void hados_context_init(struct hados_context *context) {
 	FCGX_InitRequest(&context->fcgxRequest, 0, 0);
 	hados_object_init(&context->object);
@@ -37,6 +40,7 @@ void hados_context_init(struct hados_context *context) {
 	context->nodeArray = NULL;
 	context->nodesNumber = 0;
 	curl_global_init(CURL_GLOBAL_ALL);
+	setlocale(LC_ALL, "");
 }
 
 const char* hados_context_get_env(struct hados_context *context,
@@ -160,6 +164,9 @@ int hados_context_set_object(struct hados_context *context,
 	return hados_object_load(&context->object, context, request, response);
 }
 
+/**
+ * The application exits. Free everything.
+ */
 void hados_context_free(struct hados_context *context) {
 	hados_object_free(&context->object);
 	if (context->nodes != NULL ) {

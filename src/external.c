@@ -85,11 +85,10 @@ static size_t writeHeaderCallback(void *content, size_t size, size_t nmemb,
 	return realsize;
 }
 
-static void curlGet(const char* url, struct CallbackStruct *callback) {
-	CURL *curl_handle;
+static void hados_external_curlGet(struct hados_context *context,
+		CURL *curl_handle, const char* url, struct CallbackStruct *callback) {
 	CURLcode res;
 
-	curl_handle = curl_easy_init();
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
 	curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataCallback);
 	curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void * ) callback);
@@ -99,13 +98,13 @@ static void curlGet(const char* url, struct CallbackStruct *callback) {
 	res = curl_easy_perform(curl_handle);
 
 	if (res != CURLE_OK)
-		perror(curl_easy_strerror(res));
-
-	curl_easy_cleanup(curl_handle);
+		hados_context_error_printf(context, "CURL error: %s",
+				curl_easy_strerror(res));
 }
 
-char* hados_external_url(const char* node_url, const char *cmd,
-		const char *path) {
+char* hados_external_curl_url(CURL *curl_handle, const char* node_url,
+		const char *cmd, const char *path) {
+	char* esc_path = curl_easy_escape(curl_handle, path, 0);
 	int l = strlen(node_url) + strlen(cmd) + 5;
 	if (path != NULL )
 		l += strlen(path) + 6;
@@ -115,29 +114,41 @@ char* hados_external_url(const char* node_url, const char *cmd,
 	strcat(url, cmd);
 	if (path != NULL ) {
 		strcat(url, "&path=");
-		strcat(url, path);
+		strcat(url, esc_path);
 	}
+	curl_free(esc_path);
 	return url;
 }
 
-static int hados_external_command(struct hados_response *response,
-		const char* node_url, const char *command, const char* path) {
-	char *url = hados_external_url(node_url, command, path);
+char* hados_external_url(const char* node_url, const char *cmd,
+		const char *path) {
+	CURL *curl_handle = curl_easy_init();
+	char *res = hados_external_curl_url(curl_handle, node_url, cmd, path);
+	curl_easy_cleanup(curl_handle);
+	return res;
+}
+
+static int hados_external_command(struct hados_context *context,
+		struct hados_response *response, const char* node_url,
+		const char *command, const char* path) {
+	CURL *curl_handle = curl_easy_init();
+	char *url = hados_external_curl_url(curl_handle, node_url, command, path);
 	struct CallbackStruct callback;
 	hados_callback_init(&callback, response);
 	callback.response = response;
-	curlGet(url, &callback);
+	hados_external_curlGet(context, curl_handle, url, &callback);
 	hados_callback_free(&callback);
 	free(url);
+	curl_easy_cleanup(curl_handle);
 	return callback.hados_status;
 }
 
-int hados_external_exists(struct hados_response *response, const char* node_url,
-		const char* path) {
-	return hados_external_command(response, node_url, "exists", path);
+int hados_external_exists(struct hados_context *context,
+		struct hados_response *response, const char* node_url, const char* path) {
+	return hados_external_command(context, response, node_url, "exists", path);
 }
 
-int hados_external_delete(struct hados_response *response, const char* node_url,
-		const char* path) {
-	return hados_external_command(response, node_url, "delete", path);
+int hados_external_delete(struct hados_context *context,
+		struct hados_response *response, const char* node_url, const char* path) {
+	return hados_external_command(context, response, node_url, "delete", path);
 }

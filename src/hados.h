@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <locale.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -134,13 +135,12 @@ void hados_command_dispatch(struct hados_context *context,
 		struct hados_request *request, struct hados_response *response);
 
 //defined in external.c
-
 char* hados_external_url(const char* node_url, const char *cmd,
 		const char *path);
-int hados_external_exists(struct hados_response *response, const char* url,
-		const char* path);
-int hados_external_delete(struct hados_response *response, const char* node_url,
-		const char* path);
+int hados_external_exists(struct hados_context *context,
+		struct hados_response *response, const char* url, const char* path);
+int hados_external_delete(struct hados_context *context,
+		struct hados_response *response, const char* node_url, const char* path);
 
 //define in utils.c
 
