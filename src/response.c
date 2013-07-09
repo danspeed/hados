@@ -26,6 +26,8 @@
 
 #include "hados.h"
 
+const char *HADOS_VERSION = "0.2";
+
 /**
  * Initiate the content of the response structure
  */
@@ -148,7 +150,8 @@ void hados_response_write(struct hados_response *response) {
 			HADOS_HEADER_STATUS, response->status);
 
 	// Then we send the JSON content
-	hados_context_printf(response->context, "{\n\"version\": 0.1");
+	hados_context_printf(response->context, "{\n\"version\": %s",
+			HADOS_VERSION);
 	if (response->context->request.command != NULL )
 		hados_context_printf(response->context, ",\n\"command\": \"%s\"",
 				response->context->request.command);
