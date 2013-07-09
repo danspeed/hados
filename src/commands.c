@@ -254,6 +254,13 @@ static int hados_command_cluster_put(struct hados_context *context) {
 		hados_external_free(&external);
 	}
 
+	int copy_count = 1;
+	char *count = hados_request_getvalue(&context->request, "count");
+	if (count != NULL ) {
+		copy_count = atoi(count);
+	}
+	hados_nodes_random_set(&nodes, copy_count, 1);
+
 	int found = 0;
 	int err = 0;
 
@@ -285,6 +292,7 @@ static int hados_command_cluster_put(struct hados_context *context) {
 		hados_response_more_json(&context->response, s);
 	}
 
+	hados_nodes_free(&nodes);
 	sprintf(s, "Put %d over %d", found, i);
 	hados_tempfile_free(&tempfile);
 	return hados_response_set_status(&context->response, HADOS_SUCCESS, s);

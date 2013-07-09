@@ -231,6 +231,7 @@ void hados_fileitem_array_sort(struct hados_fileitem_array *array);
 void hados_nodes_init(struct hados_nodes *nodes, int length);
 void hados_nodes_free(struct hados_nodes *nodes);
 void hados_nodes_set(struct hados_nodes *nodes, int pos, char val);
+void hados_nodes_random_set(struct hados_nodes *nodes, int howmany, char val);
 
 // Constants
 

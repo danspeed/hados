@@ -32,6 +32,8 @@ static void *hados_thread(void * parm) {
 
 	int rc;
 
+	srand48(time(0));
+
 	// The generic context of the running node
 	struct hados_context context;
 

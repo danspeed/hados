@@ -144,9 +144,18 @@ static void hados_external_curl_put(struct hados_external *external,
 		hados_context_error_printf(external->context,
 				"hados_external_curl_put - CURL error on %s : %s", url,
 				curl_easy_strerror(res));
-		external->hados_status = HADOS_INTERNAL_ERROR;
-	} else
-		external->hados_status = HADOS_SUCCESS;
+		goto exit;
+	}
+
+	long http_code = 0;
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+	if (http_code != 200) {
+		hados_context_error_printf(external->context,
+				"hados_external_curl_put - Wrong HTTP code on %ld", http_code);
+		goto exit;
+	}
+
+	external->hados_status = HADOS_SUCCESS;
 
 	exit:
 

@@ -52,3 +52,32 @@ void hados_nodes_set(struct hados_nodes *nodes, int pos, char val) {
 		return;
 	nodes->array[pos] = val;
 }
+
+void hados_nodes_random_set(struct hados_nodes *nodes, int howmany, char val) {
+	int i;
+	int avail_nodes[nodes->length];
+	int avail_count = 0;
+	int already_set = 0;
+	for (i = 0; i < nodes->length; i++) {
+		if (nodes->array[i] == val)
+			already_set++;
+		else
+			avail_nodes[avail_count++] = i;
+	}
+	// We have more nodes already set than expected
+	if (already_set >= howmany)
+		return;
+	// We have less or equals nodes available than requested
+	// All are set
+	if (howmany >= avail_count) {
+		for (i = 0; i < avail_count; i++)
+			nodes->array[avail_nodes[i]] = val;
+		return;
+	}
+
+	// Find random nodes
+	long int rand = lrand48();
+	howmany -= already_set;
+	for (i = 0; i < howmany; i++)
+		nodes->array[avail_nodes[(rand + i) % avail_count]] = val;
+}
