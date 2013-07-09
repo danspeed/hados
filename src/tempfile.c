@@ -27,12 +27,12 @@
 #include "hados.h"
 
 int hados_tempfile_new(struct hados_tempfile *tempfile,
-		struct hados_context *context, struct hados_response *response) {
+		struct hados_context *context) {
 	tempfile->path = malloc((strlen(context->temp_dir) + 60) * sizeof(char));
 	sprintf(tempfile->path, "%s/%p", context->temp_dir, tempfile->path);
 	tempfile->fd = fopen(tempfile->path, "wb");
 	if (tempfile->fd == NULL )
-		return hados_response_set_errno(response);
+		return hados_response_set_errno(&context->response);
 	return HADOS_SUCCESS;
 }
 
@@ -45,14 +45,14 @@ void hados_tempfile_free(struct hados_tempfile *tempfile) {
 }
 
 int hados_tempfile_upload(struct hados_tempfile *tempfile,
-		struct hados_context *context, struct hados_response *response) {
+		struct hados_context *context) {
 	const char* content_length = hados_context_get_env(context,
 			"CONTENT_LENGTH");
 	long contentLength = 0;
 	if (content_length != NULL )
 		contentLength = atol(content_length);
 	if (contentLength == 0)
-		return hados_response_set_status(response,
+		return hados_response_set_status(&context->response,
 				HADOS_NO_CONTENT_LENGTH_GIVEN, "Missing content length header");
 	int c;
 	context->bytes_received = 0;
@@ -63,13 +63,13 @@ int hados_tempfile_upload(struct hados_tempfile *tempfile,
 		}
 		context->bytes_received++;
 		if (fputc(c, tempfile->fd) == EOF) {
-			hados_response_set_errno(response);
+			hados_response_set_errno(&context->response);
 			break;
 		}
 	}
 	fclose(tempfile->fd);
 	if (context->bytes_received != contentLength)
-		return hados_response_set_status(response,
+		return hados_response_set_status(&context->response,
 				HADOS_NOT_ENOUGH_BYTES_RECEIVED, "Not enough bytes received");
 	return HADOS_SUCCESS;
 }

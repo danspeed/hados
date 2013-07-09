@@ -36,9 +36,6 @@ static void *hados_thread(void * parm) {
 	struct hados_context context;
 
 	// Parameters array pass to commands
-	struct hados_request request;
-
-	struct hados_response response;
 
 	hados_context_init(&context);
 
@@ -54,18 +51,10 @@ static void *hados_thread(void * parm) {
 			break;
 
 		//Main loop
-		hados_context_load(&context);
-		hados_request_init(&request);
-		hados_request_load(&request, &context);
-
-		hados_response_init(&response);
-
-		hados_command_dispatch(&context, &request, &response);
-
-		hados_response_write(&response, &context, &request);
-		hados_response_free(&response);
-		hados_request_free(&request);
-
+		hados_context_transaction_init(&context);
+		hados_command_dispatch(&context);
+		hados_response_write(&context.response);
+		hados_context_transaction_free(&context);
 		FCGX_Finish_r(&context.fcgxRequest);
 	}
 

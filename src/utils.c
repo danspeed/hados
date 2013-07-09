@@ -106,3 +106,26 @@ int hados_utils_mkdir_if_not_exists(struct hados_context *context,
 	return err;
 }
 
+json_value* hados_utils_json_get(json_value* json, const char* name) {
+	if (json->type != json_object)
+		return NULL ;
+	int i;
+	for (i = 0; i < json->u.object.length; i++)
+		if (strcmp(json->u.object.values[i].name, name) == 0)
+			return json->u.object.values[i].value;
+	return NULL ;
+}
+
+char *hados_utils_json_get_string(json_value* json, const char* name) {
+	json = hados_utils_json_get(json, name);
+	if (json == NULL )
+		return NULL ;
+	return json->type != json_string ? NULL : json->u.string.ptr;
+}
+
+json_value* hados_utils_json_get_array(json_value* json, const char* name) {
+	json = hados_utils_json_get(json, name);
+	if (json == NULL )
+		return NULL ;
+	return json->type != json_array ? NULL : json;
+}

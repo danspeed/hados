@@ -40,10 +40,14 @@
 #include <dirent.h>
 #include "fcgiapp.h"
 #include <curl/curl.h>
+#include "json.h"
+
+typedef struct hados_context hados_context;
 
 struct hados_object {
 	char *filepath;
 	char *filename;
+	hados_context *context;
 };
 
 /**
@@ -52,21 +56,10 @@ struct hados_object {
 struct hados_response {
 	int status; // The status code
 	int http_status; // The HTTP code that will be returned
+	char *moreheader; // Any additional formatted HTTP header
 	char *message; // The JSON message
 	char *morejson; // Any additional JSON formated message
-};
-
-struct hados_context {
-	FCGX_Request fcgxRequest;
-	char *node; // The public URL of myself
-	int nodesNumber; // Number of nodes in the cluster
-	char *nodes; // The string defining the list of nodes
-	char **nodeArray; // Node of the cluster
-	char *data_dir; // The directory where the data are stored
-	char *file_dir; // The directory where the files are stored
-	char *temp_dir; // The directory where the files are stored
-	struct hados_object object; // The current file object
-	long bytes_received;
+	hados_context *context;
 };
 
 struct hados_request {
@@ -80,67 +73,121 @@ struct hados_request {
 	struct timeval requestTime;
 };
 
+struct hados_context {
+	// Application global
+	char *node; // The public URL of myself
+	int nodesNumber; // Number of nodes in the cluster
+	char *nodes; // The string defining the list of nodes
+	char **nodeArray; // Node of the cluster
+	char *data_dir; // The directory where the data are stored
+	char *file_dir; // The directory where the files are stored
+	char *temp_dir; // The directory where the files are stored
+	// Transaction global
+	CURL *curl; // CURL handle
+	FCGX_Request fcgxRequest; //Fast CGI
+	struct hados_request request; // Users request
+	struct hados_response response; // Users response
+	struct hados_object object; // The current file object
+	long bytes_received;
+};
+
+/**
+ * Hold the information used to request another node
+ */
+struct hados_external {
+	char *body;
+	size_t size;
+	int hados_status;
+	json_value* json;
+	struct hados_context *context;
+};
+
+/**
+ * Define a temp file stored in the temp directory of hados
+ */
 struct hados_tempfile {
 	char *path;
 	FILE *fd;
 };
 
+/**
+ * Define a file with its type
+ */
+struct hados_fileitem {
+	char *name;
+	char *type;
+};
+
+/**
+ * An array of fileitem
+ */
+struct hados_fileitem_array {
+	size_t length;
+	struct hados_fileitem *fileitems;
+};
+
 // defined in object.c
 
-void hados_object_init(struct hados_object *object);
-int hados_object_load(struct hados_object *hados_object,
-		struct hados_context *context, struct hados_request *request,
-		struct hados_response *response);
-void hados_object_free(struct hados_object *hados_object);
+void hados_object_init(struct hados_object *object,
+		struct hados_context *context);
+int hados_object_load(struct hados_object *object);
+void hados_object_free(struct hados_object *object);
 
 // defined in context.c
 
 void hados_context_init(struct hados_context *context);
-void hados_context_load(struct hados_context *context);
+void hados_context_transaction_init(struct hados_context *context);
+void hados_context_transaction_free(struct hados_context *context);
 const char* hados_context_get_env(struct hados_context *context,
 		const char* param);
 char* hados_context_get_env_dup(struct hados_context *context,
 		const char* param);
-int hados_context_printf(struct hados_context *context, const char *format, ...);
+int hados_context_printf(const struct hados_context *context,
+		const char *format, ...);
 int hados_context_error_printf(struct hados_context *context,
 		const char *format, ...);
 void hados_context_free(struct hados_context *context);
-int hados_context_set_object(struct hados_context *context,
-		struct hados_request *request, struct hados_response *response);
+int hados_context_set_object(struct hados_context *context);
 
 //defined in request.c
 
 void hados_request_init(struct hados_request *request);
 void hados_request_free(struct hados_request *request);
-void hados_request_load(struct hados_request *request,
-		struct hados_context *context);
+void hados_request_load(struct hados_request *request, const char* queryString);
 char* hados_request_getvalue(struct hados_request *request, const char* key);
 
 //defined in response.c
 
-void hados_response_init(struct hados_response *response);
+void hados_response_init(struct hados_response *response,
+		struct hados_context *context);
 void hados_response_free(struct hados_response *response);
 int hados_response_set_status(struct hados_response *response, int status,
 		const char* message);
 void hados_response_more_json(struct hados_response *response,
 		const char* morejson);
+void hados_response_more_header(struct hados_response *response,
+		const char* header, const char* value);
 int hados_response_set_errno(struct hados_response *response);
 int hados_response_set_success(struct hados_response *response);
-void hados_response_write(struct hados_response *response,
-		struct hados_context *context, struct hados_request *request);
+void hados_response_write(struct hados_response *response);
 
 //define in commands.c
 
-void hados_command_dispatch(struct hados_context *context,
-		struct hados_request *request, struct hados_response *response);
+void hados_command_dispatch(struct hados_context *context);
 
 //defined in external.c
-char* hados_external_url(const char* node_url, const char *cmd,
-		const char *path);
-int hados_external_exists(struct hados_context *context,
-		struct hados_response *response, const char* url, const char* path);
-int hados_external_delete(struct hados_context *context,
-		struct hados_response *response, const char* node_url, const char* path);
+void hados_external_init(struct hados_external *external,
+		struct hados_context *context);
+void hados_external_free(struct hados_external *external);
+char* hados_external_url(struct hados_external *external, const char* node_url,
+		const char *cmd, const char *path);
+int hados_external_exists(struct hados_external *external, const char* node_url,
+		const char* path);
+int hados_external_delete(struct hados_external *external, const char* node_url,
+		const char* path);
+int hados_external_list(struct hados_external *external, const char* node_url,
+		const char* path);
+json_value* hados_external_get_json(struct hados_external *external);
 
 //define in utils.c
 
@@ -150,13 +197,29 @@ char* hados_utils_strcat(char* str, const char* add);
 int hados_utils_mkdirs(const char *file_path, struct hados_response *response);
 int hados_utils_mkdir_if_not_exists(struct hados_context *context,
 		const char *dir_path);
+json_value* hados_utils_json_get(json_value* json, const char* name);
+char *hados_utils_json_get_string(json_value* json, const char* name);
+json_value* hados_utils_json_get_array(json_value* json, const char* name);
 
 // define in tempfile.c
+
 int hados_tempfile_new(struct hados_tempfile *tempfile,
-		struct hados_context *context, struct hados_response *response);
+		struct hados_context *context);
 void hados_tempfile_free(struct hados_tempfile *tempfile);
 int hados_tempfile_upload(struct hados_tempfile *tempfile,
-		struct hados_context *context, struct hados_response *response);
+		struct hados_context *context);
+
+// defined in fileitem.c
+
+int hados_fileitem_cmp(const void *v1, const void *v2);
+void hados_fileitem_to_json(struct hados_fileitem *fileitem, char* s,
+		size_t length);
+void hados_fileitem_static(struct hados_fileitem *fileitem, struct dirent *ep);
+void hados_fileitem_array_init(struct hados_fileitem_array *array);
+void hados_fileitem_array_free(struct hados_fileitem_array *array);
+void hados_fileitem_array_load(struct hados_fileitem_array *array,
+		json_value *json);
+void hados_fileitem_array_sort(struct hados_fileitem_array *array);
 
 // Constants
 
@@ -180,3 +243,5 @@ int hados_tempfile_upload(struct hados_tempfile *tempfile,
 #define HADOS_OBJECT_FOUND					200
 #define HADOS_REDIRECT						302
 
+// Hados HTTP header
+#define HADOS_HEADER_STATUS		"X-Hados-Status"

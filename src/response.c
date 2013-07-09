@@ -29,11 +29,14 @@
 /**
  * Initiate the content of the response structure
  */
-void hados_response_init(struct hados_response *response) {
+void hados_response_init(struct hados_response *response,
+		struct hados_context *context) {
 	response->status = 0;
 	response->http_status = 200;
+	response->moreheader = NULL;
 	response->message = NULL;
 	response->morejson = NULL;
+	response->context = context;
 }
 
 /**
@@ -43,6 +46,10 @@ void hados_response_free(struct hados_response *response) {
 	if (response->message != NULL ) {
 		free(response->message);
 		response->message = NULL;
+	}
+	if (response->moreheader != NULL ) {
+		free(response->moreheader);
+		response->moreheader = NULL;
 	}
 	if (response->morejson != NULL ) {
 		free(response->morejson);
@@ -86,6 +93,21 @@ void hados_response_more_json(struct hados_response *response, const char* json)
 }
 
 /**
+ * Add HEADER to the current HTTP response
+ */
+void hados_response_more_header(struct hados_response *response,
+		const char* header, const char* value) {
+	const char *format = "%s: %s\r\n";
+	char *headerstring = malloc(
+			(strlen(header) + strlen(value) + strlen(format) + 1)
+					* sizeof(char));
+	sprintf(headerstring, format, header, value);
+	response->moreheader = hados_utils_strcat(response->moreheader,
+			headerstring);
+	free(headerstring);
+}
+
+/**
  * Fill the status with errno value, and the returned message with the standard error text
  */
 int hados_response_set_errno(struct hados_response *response) {
@@ -107,43 +129,50 @@ int hados_response_set_success(struct hados_response *response) {
  * Write the response to the standard output using JSON format.
  * If the status is HADOS_BINARY_RESULT, nothing is send
  */
-void hados_response_write(struct hados_response *response,
-		struct hados_context *context, struct hados_request *request) {
+void hados_response_write(struct hados_response *response) {
 	if (response->status == HADOS_BINARY_RESULT)
 		return;
 
 	// First we send the HTTP header
 	if (response->http_status != 200)
-		hados_context_printf(context, "Status: %d\r\n", response->http_status);
+		hados_context_printf(response->context, "Status: %d\r\n",
+				response->http_status);
 	if (response->http_status == 302)
-		hados_context_printf(context, "Location: %s\r\n", response->message);
-	hados_context_printf(context, "Content-type: application/json\r\n");
-	hados_context_printf(context, "X-Hados-Status: %d\r\n\r\n",
-			response->status);
+		hados_context_printf(response->context, "Location: %s\r\n",
+				response->message);
+	hados_context_printf(response->context,
+			"Content-type: application/json\r\n");
+	if (response->moreheader != NULL )
+		hados_context_printf(response->context, "%s", response->moreheader);
+	hados_context_printf(response->context, "%s: %d\r\n\r\n",
+			HADOS_HEADER_STATUS, response->status);
 
 	// Then we send the JSON content
-	hados_context_printf(context, "{\n\"version\": 0.1");
-	if (request->command != NULL )
-		hados_context_printf(context, ",\n\"command\": \"%s\"",
-				request->command);
-	if (context->bytes_received != 0)
-		hados_context_printf(context, ",\n\"bytes_received\": %d",
-				context->bytes_received);
-	hados_context_printf(context, ",\n\"status\": %d", response->status);
+	hados_context_printf(response->context, "{\n\"version\": 0.1");
+	if (response->context->request.command != NULL )
+		hados_context_printf(response->context, ",\n\"command\": \"%s\"",
+				response->context->request.command);
+	if (response->context->bytes_received != 0)
+		hados_context_printf(response->context, ",\n\"bytes_received\": %d",
+				response->context->bytes_received);
+	hados_context_printf(response->context, ",\n\"status\": %d",
+			response->status);
 	if (response->message != NULL )
-		hados_context_printf(context, ",\n\"message\": \"%s\"",
+		hados_context_printf(response->context, ",\n\"message\": \"%s\"",
 				response->message);
 
 	//Compute elapsed time
 	struct timeval endTime;
 	gettimeofday(&endTime, NULL );
-	long elapsedTime = (endTime.tv_sec - request->requestTime.tv_sec) * 1000.0; // sec to ms
-	elapsedTime += (endTime.tv_usec - request->requestTime.tv_usec) / 1000.0; // us to ms
-	hados_context_printf(context, ",\n\"time_ms\": %ld", elapsedTime);
+	long elapsedTime = (endTime.tv_sec
+			- response->context->request.requestTime.tv_sec) * 1000.0; // sec to ms
+	elapsedTime += (endTime.tv_usec
+			- response->context->request.requestTime.tv_usec) / 1000.0; // us to ms
+	hados_context_printf(response->context, ",\n\"time_ms\": %ld", elapsedTime);
 
 	// Print any additional JSON information
 	if (response->morejson != NULL )
-		hados_context_printf(context, "%s", response->morejson);
+		hados_context_printf(response->context, "%s", response->morejson);
 
-	hados_context_printf(context, "%s", "\n}\n");
+	hados_context_printf(response->context, "%s", "\n}\n");
 }

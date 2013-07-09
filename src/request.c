@@ -58,17 +58,9 @@ void hados_request_free(struct hados_request *request) {
 /**
  * Build the parameters structure using the query string
  */
-void hados_request_load(struct hados_request *request,
-		struct hados_context *context) {
+void hados_request_load(struct hados_request *request, const char *queryString) {
 
 	gettimeofday(&request->requestTime, NULL );
-
-	const char* envQueryString = hados_context_get_env(context, "QUERY_STRING");
-
-	CURL *curl_handle = NULL;
-	curl_handle = curl_easy_init();
-	char *queryString = curl_easy_unescape(curl_handle, envQueryString, 0,
-			NULL );
 
 	// Count the number of parameters
 	if (queryString != NULL && strlen(queryString) > 0) {
@@ -80,7 +72,7 @@ void hados_request_load(struct hados_request *request,
 		}
 		free(qs);
 		if (request->count == 0)
-			goto exit;
+			return;
 		request->keyvalue = (char **) malloc(request->count * sizeof(void *));
 		request->key = (char **) malloc(request->count * sizeof(void *));
 		request->value = (char **) malloc(request->count * sizeof(void *));
@@ -106,12 +98,6 @@ void hados_request_load(struct hados_request *request,
 		request->paramPath = hados_request_getvalue(request, "path");
 	}
 
-	exit:
-
-	if (queryString != NULL )
-		curl_free(queryString);
-	if (curl_handle != NULL )
-		curl_easy_cleanup(curl_handle);
 }
 
 /**

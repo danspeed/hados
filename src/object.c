@@ -26,47 +26,47 @@
 
 #include "hados.h"
 
-void hados_object_init(struct hados_object *object) {
+void hados_object_init(struct hados_object *object,
+		struct hados_context *context) {
 	object->filepath = NULL;
 	object->filename = NULL;
+	object->context = context;
 }
 
-int hados_object_load(struct hados_object *object,
-		struct hados_context *context, struct hados_request *request,
-		struct hados_response *response) {
+int hados_object_load(struct hados_object *object) {
 	hados_object_free(object);
 
-	if (request->paramPath == NULL )
-		return hados_response_set_status(response, HADOS_PATH_IS_MISSING,
-				"The path is missing");
+	if (object->context->request.paramPath == NULL )
+		return hados_response_set_status(&object->context->response,
+				HADOS_PATH_IS_MISSING, "The path is missing");
 	// We don't want changing directory
-	if (strstr(request->paramPath, "../") != NULL )
-		return hados_response_set_status(response,
+	if (strstr(object->context->request.paramPath, "../") != NULL )
+		return hados_response_set_status(&object->context->response,
 				HADOS_WRONG_CHARACTER_IN_PATH,
 				"Not allowed character in the path");
-	if (strstr(request->paramPath, "./") != NULL )
-		return hados_response_set_status(response,
+	if (strstr(object->context->request.paramPath, "./") != NULL )
+		return hados_response_set_status(&object->context->response,
 				HADOS_WRONG_CHARACTER_IN_PATH,
 				"Not allowed character in the path");
-	if (strstr(request->paramPath, "//") != NULL )
-		return hados_response_set_status(response,
+	if (strstr(object->context->request.paramPath, "//") != NULL )
+		return hados_response_set_status(&object->context->response,
 				HADOS_WRONG_CHARACTER_IN_PATH,
 				"Not allowed character in the path");
 
-	if (strlen(request->paramPath) > HADOS_PATH_TOO_LONG)
-		return hados_response_set_status(response, HADOS_PATH_TOO_LONG,
-				"The path is too long");
+	if (strlen(object->context->request.paramPath) > HADOS_PATH_TOO_LONG)
+		return hados_response_set_status(&object->context->response,
+				HADOS_PATH_TOO_LONG, "The path is too long");
 	// Find the name of the file
-	object->filename = strrchr(request->paramPath, '/');
+	object->filename = strrchr(object->context->request.paramPath, '/');
 	if (object->filename == NULL )
-		object->filename = request->paramPath;
+		object->filename = object->context->request.paramPath;
 	else
 		object->filename++;
 	object->filepath = malloc(
-			(strlen(request->paramPath) + strlen(context->file_dir) + 2)
-					* sizeof(char));
-	hados_utils_concat_path(context->file_dir, request->paramPath,
-			object->filepath);
+			(strlen(object->context->request.paramPath)
+					+ strlen(object->context->file_dir) + 2) * sizeof(char));
+	hados_utils_concat_path(object->context->file_dir,
+			object->context->request.paramPath, object->filepath);
 	return HADOS_SUCCESS;
 }
 

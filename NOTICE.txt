@@ -16,3 +16,13 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with HADOS.
 If not, see <http://www.gnu.org/licenses/>.
+
+----------------------------------------
+ 
+This product includes software developed by:
+
+----------------------------------------
+JSON-PARSER
+Copyright (C) 2012 James McLaughlin et al.  All rights reserved.
+https://github.com/udp/json-parser
+Rely on BSD license
