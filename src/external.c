@@ -31,7 +31,7 @@ void hados_external_init(struct hados_external *external,
 	external->context = context;
 	external->body = malloc(1); /* will be grown as needed by the realloc above */
 	external->size = 0; /* no data at this point */
-	external->hados_status = 0;
+	external->hados_status = HADOS_INTERNAL_ERROR;
 	external->json = NULL;
 }
 
@@ -99,10 +99,61 @@ static void hados_external_curl_get(struct hados_external *external,
 
 	res = curl_easy_perform(curl);
 
-	if (res != CURLE_OK)
-		hados_context_error_printf(external->context, "CURL error: %s",
+	if (res != CURLE_OK) {
+		hados_context_error_printf(external->context,
+				"hados_external_curl_get - CURL error: %s",
 				curl_easy_strerror(res));
-	curl_easy_cleanup(curl);
+		external->hados_status = HADOS_INTERNAL_ERROR;
+	}
+	if (curl != NULL )
+		curl_easy_cleanup(curl);
+}
+
+static void hados_external_curl_put(struct hados_external *external,
+		char *filepath, const char *url) {
+
+	CURL *curl = NULL;
+	CURLcode res;
+	struct stat file_info;
+	FILE *fd = NULL;
+
+	fd = fopen(filepath, "rb"); /* open file to upload */
+	if (fd == NULL ) {
+		hados_context_error_printf(external->context,
+				"hados_external_curl_put - fopen error");
+		goto exit;
+	}
+
+	/* to get the file size */
+	if (fstat(fileno(fd), &file_info) != 0) {
+		hados_context_error_printf(external->context,
+				"hados_external_curl_put - fstat error");
+		goto exit;
+	}
+
+	curl = curl_easy_init();
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+	curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+	curl_easy_setopt(curl, CURLOPT_READDATA, fd);
+	curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE,
+			(curl_off_t )file_info.st_size);
+
+	res = curl_easy_perform(curl);
+	/* Check for errors */
+	if (res != CURLE_OK) {
+		hados_context_error_printf(external->context,
+				"hados_external_curl_put - CURL error on %s : %s", url,
+				curl_easy_strerror(res));
+		external->hados_status = HADOS_INTERNAL_ERROR;
+	} else
+		external->hados_status = HADOS_SUCCESS;
+
+	exit:
+
+	if (fd != NULL )
+		fclose(fd);
+	if (curl != NULL )
+		curl_easy_cleanup(curl);
 }
 
 char* hados_external_url(struct hados_external *external, const char* node_url,
@@ -146,6 +197,14 @@ int hados_external_list(struct hados_external *external, const char* node_url,
 int hados_external_delete(struct hados_external *external, const char* node_url,
 		const char* path) {
 	return hados_external_command(external, node_url, "delete", path);
+}
+
+int hados_external_put(struct hados_external *external,
+		struct hados_tempfile *tempfile, const char* node_url, const char*path) {
+	char *url = hados_external_url(external, node_url, "put", path);
+	hados_external_curl_put(external, tempfile->path, url);
+	free(url);
+	return external->hados_status;
 }
 
 json_value* hados_external_get_json(struct hados_external *external) {

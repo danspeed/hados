@@ -229,7 +229,6 @@ static int hados_command_cluster_list(struct hados_context *context) {
 static int hados_command_cluster_put(struct hados_context *context) {
 	char s[2048];
 	int i;
-	int found = 0;
 
 	// First store the uploaded file locally as temp file
 	struct hados_tempfile tempfile;
@@ -240,24 +239,52 @@ static int hados_command_cluster_put(struct hados_context *context) {
 		return context->response.status;
 	}
 
-	// Put it where it already exists
+	struct hados_nodes nodes;
+	hados_nodes_init(&nodes, context->nodesNumber);
+
+	// Check where it already exists
 	struct hados_external external;
+
 	for (i = 0; i < context->nodesNumber; i++) {
 		char *currentNode = context->nodeArray[i];
 		hados_external_init(&external, context);
 		if (hados_external_exists(&external, currentNode,
-				context->request.paramPath) == 200) {
+				context->request.paramPath) == 200)
+			hados_nodes_set(&nodes, i, 1);
+		hados_external_free(&external);
+	}
+
+	int found = 0;
+	int err = 0;
+
+	for (i = 0; i < context->nodesNumber; i++) {
+		char *currentNode = context->nodeArray[i];
+		if (nodes.array[i] == 1) {
+			hados_external_init(&external, context);
+			if (hados_external_put(&external, &tempfile, currentNode,
+					context->request.paramPath) != HADOS_SUCCESS) {
+				hados_context_error_printf(context, "\nPUT %s %d\n",
+						currentNode, external.hados_status);
+				err++;
+				continue;
+			}
 			// PUT
 			if (found == 0)
-				sprintf(s, ", \"put_on\":[ \"%s\"", currentNode);
+				sprintf(s, ",\r\n \"put_on\":[ \"%s\"", currentNode);
 			else
 				sprintf(s, ", \"%s\"", currentNode);
+			found++;
+			hados_response_more_json(&context->response, s);
 		}
-		hados_context_error_printf(context, "CURRENTNODE %s ", currentNode);
 		hados_external_free(&external);
 	}
 	if (found > 0)
 		hados_response_more_json(&context->response, "]");
+	if (err > 0) {
+		sprintf(s, ",\r\n \"error_number\": %d", err);
+		hados_response_more_json(&context->response, s);
+	}
+
 	sprintf(s, "Put %d over %d", found, i);
 	hados_tempfile_free(&tempfile);
 	return hados_response_set_status(&context->response, HADOS_SUCCESS, s);

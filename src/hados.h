@@ -90,6 +90,11 @@ struct hados_context {
 	long bytes_received;
 };
 
+struct hados_nodes {
+	int length;
+	char *array;
+};
+
 /**
  * Hold the information used to request another node
  */
@@ -106,7 +111,6 @@ struct hados_external {
  */
 struct hados_tempfile {
 	char *path;
-	FILE *fd;
 };
 
 /**
@@ -186,6 +190,8 @@ int hados_external_delete(struct hados_external *external, const char* node_url,
 		const char* path);
 int hados_external_list(struct hados_external *external, const char* node_url,
 		const char* path);
+int hados_external_put(struct hados_external *external,
+		struct hados_tempfile *tempfile, const char* node_url, const char*path);
 json_value* hados_external_get_json(struct hados_external *external);
 
 //define in utils.c
@@ -219,6 +225,12 @@ void hados_fileitem_array_free(struct hados_fileitem_array *array);
 void hados_fileitem_array_load(struct hados_fileitem_array *array,
 		json_value *json);
 void hados_fileitem_array_sort(struct hados_fileitem_array *array);
+
+// defined in nodes.c
+
+void hados_nodes_init(struct hados_nodes *nodes, int length);
+void hados_nodes_free(struct hados_nodes *nodes);
+void hados_nodes_set(struct hados_nodes *nodes, int pos, char val);
 
 // Constants
 

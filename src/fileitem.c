@@ -17,7 +17,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ============================================================================
- Name        : utils.c
+ Name        : fileitem.c
  Author      : Emmanuel Keller
  Version     :
  Copyright   : Jaeksoft / Emmanuel Keller
